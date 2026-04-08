@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BasketIQ Snapshots — Consumer Intelligence by Chain</title>
+<meta name="description" content="Free consumer intelligence snapshots for Botswana's top grocery chains. Explore basket sizes, category spend, and brand penetration at Choppies, Spar, and Shoprite."/>
+<meta property="og:title" content="BasketIQ Snapshots — Know What Botswana Buys"/>
+<meta property="og:url" content="https://basketiq.co.bw/snapshots/"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#45dee7", "primary-container": "#00c2cb",
+          "surface": "#071425", "surface-container-lowest": "#030e20",
+          "surface-container-low": "#101c2e", "surface-container": "#142032",
+          "surface-container-high": "#1f2a3d", "surface-container-highest": "#2a3548",
+          "on-surface": "#d7e3fc", "on-surface-variant": "#bbc9ca",
+          "on-primary": "#003739", "outline-variant": "#3c494a",
+        },
+        fontFamily: { "headline": ["Manrope"], "body": ["Manrope"] },
+      },
+    },
+  }
+</script>
+<style>
+  body { font-family: 'Manrope', sans-serif; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24; }
+</style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+
+<!-- Nav -->
+<header class="bg-[#071425]/60 backdrop-blur-xl top-0 sticky z-50 border-b border-outline-variant/10">
+  <div class="flex justify-between items-center px-6 md:px-12 py-4 max-w-[1440px] mx-auto">
+    <a href="/" class="flex items-center space-x-3">
+      <img src="https://rewards.basketiq.co.bw/logo-icon.svg" alt="BasketIQ" class="w-8 h-8" onerror="this.style.display='none'"/>
+      <span class="text-2xl font-black tracking-tighter text-white">BasketIQ</span>
+    </a>
+    <div class="hidden md:flex gap-8 items-center">
+      <a class="text-on-surface-variant hover:text-primary text-sm transition-colors" href="/">Pitch</a>
+      <a class="text-primary font-bold border-b-2 border-primary pb-1 text-sm" href="/snapshots/">Snapshots</a>
+    </div>
+    <a class="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 py-2 rounded-lg font-bold text-sm hover:scale-105 transition-all" href="/#waitlist">Request Demo</a>
+  </div>
+</header>
+
+<main class="max-w-[1440px] mx-auto px-6 md:px-12 py-16 md:py-24">
+
+  <!-- Header -->
+  <div class="mb-16 max-w-3xl">
+    <div class="inline-flex items-center px-3 py-1 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest uppercase mb-6">
+      Free Consumer Insights
+    </div>
+    <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6">
+      Chain Snapshots
+    </h1>
+    <p class="text-xl text-on-surface-variant leading-relaxed">
+      A quick look at key shopping metrics and consumer profiles for Botswana's top grocery chains. Powered by real receipt data from our WhatsApp consumer panel.
+    </p>
+  </div>
+
+  <!-- Chain Cards Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
+
+    <!-- Choppies -->
+    <a href="/snapshots/choppies/" class="group bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10 hover:border-primary/30 transition-all hover:scale-[1.02]">
+      <div class="flex items-center justify-between mb-8">
+        <div class="w-16 h-16 rounded-2xl bg-[#e31e24]/10 flex items-center justify-center">
+          <span class="text-2xl font-black text-[#e31e24]">C</span>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
+      </div>
+      <h2 class="text-2xl font-bold text-white mb-2">Choppies</h2>
+      <p class="text-on-surface-variant text-sm mb-6">Botswana's largest supermarket chain. Strong private label strategy across staples.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div id="choppies-receipts" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+        </div>
+        <div>
+          <div id="choppies-basket" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Spar -->
+    <a href="/snapshots/spar/" class="group bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10 hover:border-primary/30 transition-all hover:scale-[1.02]">
+      <div class="flex items-center justify-between mb-8">
+        <div class="w-16 h-16 rounded-2xl bg-[#d4212c]/10 flex items-center justify-center">
+          <span class="text-2xl font-black text-[#d4212c]">S</span>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
+      </div>
+      <h2 class="text-2xl font-bold text-white mb-2">Spar</h2>
+      <p class="text-on-surface-variant text-sm mb-6">International franchise with strong presence in Gaborone metro. Mid-market positioning.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div id="spar-receipts" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+        </div>
+        <div>
+          <div id="spar-basket" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Shoprite -->
+    <a href="/snapshots/shoprite/" class="group bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10 hover:border-primary/30 transition-all hover:scale-[1.02]">
+      <div class="flex items-center justify-between mb-8">
+        <div class="w-16 h-16 rounded-2xl bg-[#0033a0]/10 flex items-center justify-center">
+          <span class="text-2xl font-black text-[#0033a0]">S</span>
+        </div>
+        <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
+      </div>
+      <h2 class="text-2xl font-bold text-white mb-2">Shoprite</h2>
+      <p class="text-on-surface-variant text-sm mb-6">South African chain focused on value. Lowest average basket in our panel.</p>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div id="shoprite-receipts" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+        </div>
+        <div>
+          <div id="shoprite-basket" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- About -->
+  <div class="bg-surface-container rounded-2xl p-10 max-w-3xl">
+    <h3 class="text-xl font-bold text-white mb-4">About Snapshots</h3>
+    <p class="text-on-surface-variant leading-relaxed mb-4">
+      BasketIQ Snapshots provide a free, high-level view of consumer purchasing behavior at Botswana's top grocery chains. Data is sourced from our WhatsApp-based consumer panel — real people submitting real receipts.
+    </p>
+    <p class="text-on-surface-variant leading-relaxed">
+      Want deeper insights? Category breakdowns, brand-level analytics, cross-chain price comparisons, and custom reports are available for enterprise clients.
+      <a href="/#waitlist" class="text-primary font-bold hover:underline ml-1">Request a demo</a>
+    </p>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-[#030e20] py-12 px-6 border-t border-outline-variant/10">
+  <div class="flex flex-col md:flex-row justify-between items-center max-w-[1440px] mx-auto space-y-4 md:space-y-0">
+    <div class="flex items-center space-x-3">
+      <img src="https://rewards.basketiq.co.bw/logo-icon.svg" alt="BasketIQ" class="w-6 h-6" onerror="this.style.display='none'"/>
+      <span class="text-sm font-bold text-white">BasketIQ</span>
+      <span class="text-slate-500 text-xs">Consumer intelligence, built for Africa.</span>
+    </div>
+    <div class="text-slate-500 text-xs">&copy; 2026 BasketIQ. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+const API = 'https://api.basketiq.co.bw/api/metrics/snapshots';
+async function loadPreviews() {
+  try {
+    const res = await fetch(API);
+    if (!res.ok) return;
+    const chains = await res.json();
+    chains.forEach(c => {
+      const slug = c.chain.toLowerCase();
+      const re = document.getElementById(slug + '-receipts');
+      const ba = document.getElementById(slug + '-basket');
+      if (re) re.textContent = c.receipts.toLocaleString();
+      if (ba) ba.textContent = 'P' + c.avg_basket_bwp.toFixed(0);
+    });
+  } catch(e) { console.warn('Snapshots API unavailable', e); }
+}
+loadPreviews();
+</script>
+</body>
+</html>
