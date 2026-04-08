@@ -77,15 +77,15 @@
         <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
       </div>
       <h2 class="text-2xl font-bold text-white mb-2">Choppies</h2>
-      <p class="text-on-surface-variant text-sm mb-6">Botswana's largest supermarket chain. Strong private label strategy across staples.</p>
+      <p class="text-on-surface-variant text-sm mb-6">Botswana's largest supermarket chain. Explore what their shoppers prefer.</p>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div id="choppies-receipts" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+          <div id="choppies-panel" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Panel Size</div>
         </div>
         <div>
           <div id="choppies-basket" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Basket Range</div>
         </div>
       </div>
     </a>
@@ -99,15 +99,15 @@
         <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
       </div>
       <h2 class="text-2xl font-bold text-white mb-2">Spar</h2>
-      <p class="text-on-surface-variant text-sm mb-6">International franchise with strong presence in Gaborone metro. Mid-market positioning.</p>
+      <p class="text-on-surface-variant text-sm mb-6">International franchise with strong Gaborone presence. See shopper preferences.</p>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div id="spar-receipts" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+          <div id="spar-panel" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Panel Size</div>
         </div>
         <div>
           <div id="spar-basket" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Basket Range</div>
         </div>
       </div>
     </a>
@@ -121,15 +121,15 @@
         <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary group-hover:translate-x-1 transition-all">arrow_forward</span>
       </div>
       <h2 class="text-2xl font-bold text-white mb-2">Shoprite</h2>
-      <p class="text-on-surface-variant text-sm mb-6">South African chain focused on value. Lowest average basket in our panel.</p>
+      <p class="text-on-surface-variant text-sm mb-6">South African value chain. Discover consumer purchasing patterns.</p>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div id="shoprite-receipts" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Receipts</div>
+          <div id="shoprite-panel" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Panel Size</div>
         </div>
         <div>
           <div id="shoprite-basket" class="text-2xl font-black text-primary">—</div>
-          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Avg Basket</div>
+          <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold">Basket Range</div>
         </div>
       </div>
     </a>
@@ -169,10 +169,10 @@ async function loadPreviews() {
     const chains = await res.json();
     chains.forEach(c => {
       const slug = c.chain.toLowerCase();
-      const re = document.getElementById(slug + '-receipts');
+      const pa = document.getElementById(slug + '-panel');
       const ba = document.getElementById(slug + '-basket');
-      if (re) re.textContent = c.receipts.toLocaleString();
-      if (ba) ba.textContent = 'P' + c.avg_basket_bwp.toFixed(0);
+      if (pa) pa.textContent = c.panel_size.toLocaleString();
+      if (ba) ba.textContent = c.avg_basket_band;
     });
   } catch(e) { console.warn('Snapshots API unavailable', e); }
 }

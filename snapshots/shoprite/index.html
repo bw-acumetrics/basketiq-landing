@@ -4,8 +4,8 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Shoprite Snapshot — BasketIQ Consumer Intelligence</title>
-<meta name="description" content="Consumer intelligence snapshot for Shoprite Botswana. Basket size, top categories, house brand penetration, and national brand rankings — powered by real receipt data."/>
-<meta property="og:title" content="Shoprite Snapshot — BasketIQ"/>
+<meta name="description" content="What do Shoprite shoppers prefer? Consumer behavior snapshot powered by real receipt data from BasketIQ's Botswana panel."/>
+<meta property="og:title" content="Shoprite Consumer Snapshot — BasketIQ"/>
 <meta property="og:url" content="https://basketiq.co.bw/snapshots/shoprite/"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -59,7 +59,7 @@
     <span class="text-white font-bold" id="snap-chain-name">Loading...</span>
   </nav>
 
-  <!-- Loading state -->
+  <!-- Loading -->
   <div id="snap-loading" class="py-24 text-center">
     <div class="inline-flex items-center gap-3 text-on-surface-variant">
       <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -67,18 +67,18 @@
     </div>
   </div>
 
-  <!-- Content (hidden until data loads) -->
+  <!-- Content -->
   <div id="snap-content" style="display:none">
 
     <!-- Header -->
     <div class="mb-12">
       <div class="inline-flex items-center px-3 py-1 bg-primary/20 text-primary rounded-full text-xs font-bold tracking-widest uppercase mb-4">
-        Chain Snapshot
+        Consumer Preference Snapshot
       </div>
       <h1 class="text-5xl md:text-6xl font-black tracking-tighter text-white leading-[1.05] mb-3">
         <span id="snap-chain-name">Shoprite</span>
       </h1>
-      <p class="text-xl text-on-surface-variant" id="snap-tagline"></p>
+      <p class="text-lg text-on-surface-variant" id="snap-tagline"></p>
       <p class="text-sm text-on-surface-variant/60 mt-2">
         Data period: <span id="snap-period" class="font-bold">—</span>
         <span class="mx-2">|</span>
@@ -88,84 +88,82 @@
       </p>
     </div>
 
-    <!-- Key Metrics Bento -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12">
+    <!-- Overview cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
       <div class="bg-surface-container-low rounded-xl p-6">
-        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Receipts</div>
-        <div id="snap-receipts" class="text-3xl font-black text-white">—</div>
-      </div>
-      <div class="bg-surface-container-low rounded-xl p-6">
-        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Line Items</div>
-        <div id="snap-line-items" class="text-3xl font-black text-white">—</div>
-      </div>
-      <div class="bg-surface-container-low rounded-xl p-6">
-        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Total Spend</div>
-        <div id="snap-total-spend" class="text-3xl font-black text-primary">—</div>
+        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Panel Size</div>
+        <div id="snap-panel-size" class="text-2xl font-black text-white">—</div>
       </div>
       <div class="bg-gradient-to-br from-primary to-primary-container rounded-xl p-6 text-white">
         <div class="text-[10px] uppercase tracking-widest text-white/60 font-bold mb-2">Avg Basket</div>
-        <div id="snap-avg-basket" class="text-3xl font-black">—</div>
+        <div id="snap-basket-band" class="text-2xl font-black">—</div>
       </div>
       <div class="bg-surface-container-low rounded-xl p-6">
-        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Avg Item</div>
-        <div id="snap-avg-item" class="text-3xl font-black text-white">—</div>
+        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Avg Items/Basket</div>
+        <div id="snap-avg-items" class="text-2xl font-black text-white">—</div>
+      </div>
+      <div class="bg-surface-container-low rounded-xl p-6">
+        <div class="text-[10px] uppercase tracking-widest text-on-surface-variant/60 font-bold mb-2">Coverage</div>
+        <div id="snap-cat-count" class="text-2xl font-black text-white">—</div>
       </div>
     </div>
 
-    <!-- Two columns: House Brand + Top Brands -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-
-      <!-- House Brand -->
-      <div class="bg-surface-container-low rounded-2xl p-8">
-        <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary">store</span>
-          Private Label Penetration
-        </h2>
-        <div class="flex items-end gap-4 mb-4">
-          <div id="snap-house-pct" class="text-5xl font-black text-primary">—</div>
-          <div class="text-sm text-on-surface-variant pb-1">of branded spend</div>
-        </div>
-        <div class="h-4 bg-surface-container-highest rounded-full overflow-hidden mb-4">
-          <div id="snap-house-bar" class="h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-1000" style="width: 0%"></div>
-        </div>
-        <div class="text-sm text-on-surface-variant">
-          House brand spend: <span id="snap-house-spend" class="font-bold text-white">—</span>
-        </div>
-      </div>
-
-      <!-- Top Brands -->
-      <div class="bg-surface-container-low rounded-2xl p-8">
-        <h2 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary">workspace_premium</span>
-          Top National Brands
-        </h2>
-        <div id="snap-brands" class="space-y-0">
-          <p class="text-on-surface-variant text-sm">Loading...</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Category Breakdown -->
+    <!-- Category Preferences -->
     <div class="bg-surface-container-low rounded-2xl p-8 mb-12">
-      <h2 class="text-lg font-bold text-white mb-8 flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary">category</span>
-        Top Categories by Spend
-      </h2>
-      <div id="snap-categories" class="space-y-3">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">category</span>
+          Shopper Category Preferences
+        </h2>
+      </div>
+      <p class="text-sm text-on-surface-variant/60 mb-6">
+        What % of baskets contain each category? Index shows over/under-preference vs the average Botswana shopper.
+        <span class="text-primary font-bold">+20%</span> means shoppers here are 20% more likely to buy this category than average.
+      </p>
+      <div id="snap-categories">
         <p class="text-on-surface-variant text-sm">Loading...</p>
       </div>
     </div>
 
-    <!-- CTA -->
-    <div class="bg-surface-container-highest/50 backdrop-blur-xl rounded-2xl p-10 text-center border border-outline-variant/10">
-      <h3 class="text-2xl font-bold text-white mb-3">Want the full picture?</h3>
-      <p class="text-on-surface-variant mb-6 max-w-lg mx-auto">
-        This snapshot shows the top-level view. Our enterprise reports include SKU-level detail, cross-chain price comparisons, brand switching analysis, and custom category deep-dives.
-      </p>
-      <a href="/#waitlist" class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-xl hover:scale-[1.02] active:scale-95 transition-all group">
-        Request Full Report
-        <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-      </a>
+    <!-- CTA — the gate -->
+    <div class="bg-surface-container-highest/50 backdrop-blur-xl rounded-2xl p-10 border border-outline-variant/10">
+      <div class="grid md:grid-cols-2 gap-8 items-center">
+        <div>
+          <h3 class="text-2xl font-bold text-white mb-3">Want the full picture?</h3>
+          <p class="text-on-surface-variant leading-relaxed mb-4">
+            This snapshot shows consumer preferences. Our enterprise reports include:
+          </p>
+          <ul class="space-y-2 text-on-surface-variant text-sm">
+            <li class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-sm">lock</span>
+              Brand-level market share and rankings
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-sm">lock</span>
+              Private label penetration analysis
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-sm">lock</span>
+              Cross-chain price comparisons
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-sm">lock</span>
+              SKU-level purchase data
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-sm">lock</span>
+              Custom category deep-dives
+            </li>
+          </ul>
+        </div>
+        <div class="text-center md:text-right">
+          <a href="/#waitlist" class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold text-lg rounded-xl hover:scale-[1.02] active:scale-95 transition-all group">
+            Request Full Report
+            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+          </a>
+          <p class="text-on-surface-variant/40 text-xs mt-3">A member of our team will reach out within 24 hours.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Timestamp -->
