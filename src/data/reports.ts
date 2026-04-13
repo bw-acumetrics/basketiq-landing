@@ -4,7 +4,6 @@ export interface Report {
   category: string;
   date: string;
   pages: number;
-  pdf: string;
   icon: string;
   description: string;
   summary: string;
@@ -19,7 +18,6 @@ export const reports: Report[] = [
     category: 'Beverages',
     date: 'April 2026',
     pages: 8,
-    pdf: '/reports/BasketIQ-Beverages-Soft-Drinks-Q1-2026.pdf',
     icon: 'local_drink',
     description: 'Category intelligence on Botswana\'s soft drinks market, built from 599 real line items across 500 verified baskets from 168 Gaborone consumers, February to April 2026.',
     summary: 'The first issue in the BasketIQ Consumer Goods Report — Beverages series. We analysed 599 classified soft drinks purchases across 500 verified baskets in our Gaborone receipt panel between February and April 2026. The headline finding: one company — The Coca-Cola Company — is present on roughly seven in every ten soft drinks purchased in the sample. Coke alone accounts for 43% of all units and more than six in every ten Pula spent on the top five brands. The rest of the category splits thinly between a small number of independents, a handful of PepsiCo brands, and a long tail of local labels.',

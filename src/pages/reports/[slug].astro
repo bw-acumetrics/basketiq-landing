@@ -85,10 +85,11 @@ const related = getRelatedReports(report.related);
             <div class="bg-surface-container-lowest p-8 rounded-xl shadow-xl sticky top-28">
               <h3 class="text-xl font-bold text-primary mb-2 font-headline">Get the full report</h3>
               <p class="text-secondary text-sm mb-8">Enter your work details and we'll send you the PDF. We'll also let you know when the next issue in the Beverages series drops.</p>
-              <form class="space-y-5" action="https://formspree.io/f/xojpqbpk" method="POST">
-                <input type="hidden" name="_gotcha" value="" />
-                <input type="hidden" name="report" value={report.slug} />
-                <input type="hidden" name="_next" value={report.pdf} />
+              <form id="lead-form" class="space-y-5">
+                <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                  <label for="website">Website (leave empty)</label>
+                  <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" />
+                </div>
                 <div>
                   <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Full Name</label>
                   <input type="text" name="name" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your full name" />
@@ -103,9 +104,9 @@ const related = getRelatedReports(report.related);
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Role</label>
-                  <input type="text" name="position" class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your role (optional)" />
+                  <input type="text" name="role" class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your role (optional)" />
                 </div>
-                <button type="submit" class="w-full bg-primary text-white px-6 py-4 rounded-full font-bold text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2">
+                <button id="lead-submit" type="submit" class="w-full bg-primary text-white px-6 py-4 rounded-full font-bold text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2">
                   <span class="material-symbols-outlined text-lg">download</span>
                   Download the PDF
                 </button>
@@ -113,6 +114,23 @@ const related = getRelatedReports(report.related);
                   By submitting, you agree to receive BasketIQ report updates. We respect your data.
                 </p>
               </form>
+              <div id="download-success" class="bg-surface-container-lowest p-8 rounded-xl" style="display:none">
+                <div class="flex items-center gap-3 mb-4">
+                  <span class="material-symbols-outlined text-primary-fixed" style="font-size:32px">check_circle</span>
+                  <h3 class="text-xl font-bold text-primary font-headline">Check your inbox</h3>
+                </div>
+                <p class="text-secondary mb-4 leading-relaxed">
+                  We've sent a download link to <strong id="success-email"></strong>.
+                  It should arrive within a minute. If you don't see it, check your spam
+                  folder, or write to <a href="mailto:hello@basketiq.co.bw" class="underline">hello@basketiq.co.bw</a>.
+                </p>
+                <p class="text-outline text-sm">
+                  This link works for 7 days. Need a fresh one after that? Just submit the form again.
+                </p>
+              </div>
+              <div id="download-error" class="mt-4" style="display:none">
+                <p class="text-red-600 text-sm">Something went wrong. Please try again, or email us at <a href="mailto:hello@basketiq.co.bw" class="underline">hello@basketiq.co.bw</a>.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -152,3 +170,62 @@ const related = getRelatedReports(report.related);
     )}
   </main>
 </Base>
+
+<script define:vars={{ reportSlug: report.slug }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('lead-form');
+    if (!form) return;
+    const button = document.getElementById('lead-submit');
+    const successBlock = document.getElementById('download-success');
+    const errorBlock = document.getElementById('download-error');
+    const successEmail = document.getElementById('success-email');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (errorBlock) errorBlock.style.display = 'none';
+
+      const data = new FormData(form);
+      const payload = {
+        name: (data.get('name') || '').toString().trim(),
+        email: (data.get('email') || '').toString().trim(),
+        company: (data.get('company') || '').toString().trim(),
+        role: (data.get('role') || '').toString().trim() || null,
+        report_slug: reportSlug,
+        website: (data.get('website') || '').toString(),
+      };
+
+      const originalLabel = button ? button.innerHTML : '';
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = 'Sending...';
+      }
+
+      try {
+        const response = await fetch('https://api.basketiq.co.bw/v1/public/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          if (successEmail) successEmail.textContent = payload.email;
+          form.style.display = 'none';
+          if (successBlock) successBlock.style.display = 'block';
+        } else {
+          console.error('Lead capture failed with status', response.status);
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = originalLabel;
+          }
+          if (errorBlock) errorBlock.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Lead capture fetch error', err);
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = originalLabel;
+        }
+        if (errorBlock) errorBlock.style.display = 'block';
+      }
+    });
+  });
+</script>
