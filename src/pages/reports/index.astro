@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+import ReportCard from '../../components/ReportCard.astro';
+import { reports } from '../../data/reports';
+---
+
+<Base title="All Issues | BasketIQ Consumer Goods Report — Beverages" description="Every issue of the BasketIQ Consumer Goods Report for Beverages, published from real Botswana receipt data.">
+  <main class="pt-20">
+    <!-- Hero -->
+    <section class="relative bg-gradient-to-br from-primary via-primary-container to-primary-fixed py-24 overflow-hidden">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 30%, white 2px, transparent 2px), radial-gradient(circle at 80% 70%, white 2px, transparent 2px); background-size: 48px 48px;"></div>
+      <div class="max-w-7xl mx-auto px-8 relative z-10">
+        <p class="text-white/80 font-bold text-xs uppercase tracking-widest mb-4">Every Issue</p>
+        <h1 class="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-[1.1] mb-6 font-headline">
+          Consumer Goods Report — Beverages
+        </h1>
+        <p class="text-white/80 text-lg md:text-xl max-w-2xl leading-relaxed">
+          Every issue in the Beverages series. Category intelligence on Botswana's drinks aisle, built from real receipts.
+        </p>
+      </div>
+    </section>
+
+    <!-- Report Grid -->
+    <section class="py-24 bg-surface">
+      <div class="max-w-7xl mx-auto px-8">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {reports.map(report => (
+            <ReportCard
+              slug={report.slug}
+              title={report.title}
+              category={report.category}
+              date={report.date}
+              icon={report.icon}
+              pages={report.pages}
+              description={report.description}
+              showDescription={true}
+            />
+          ))}
+        </div>
+
+        {reports.length === 1 && (
+          <div class="mt-16 max-w-2xl mx-auto text-center">
+            <div class="bg-surface-container-low p-10 rounded-xl">
+              <span class="material-symbols-outlined text-on-primary-container text-4xl mb-4">schedule</span>
+              <h3 class="text-xl font-bold text-primary mb-3 font-headline">Next issue: Fruit Juices</h3>
+              <p class="text-secondary mb-6">The next issue in the Beverages series will drop when we've collected enough juice line items to support a category view at the same standard. Want to be told when it lands?</p>
+              <a href={`/reports/${reports[0].slug}#download-form`} class="bg-primary text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-primary-container transition-all inline-block">
+                Join the list
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  </main>
+</Base>

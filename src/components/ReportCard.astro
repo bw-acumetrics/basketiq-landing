@@ -1,0 +1,41 @@
+---
+interface Props {
+  slug: string;
+  title: string;
+  category: string;
+  date: string;
+  icon: string;
+  pages?: number;
+  description?: string;
+  showDescription?: boolean;
+}
+
+const { slug, title, category, date, icon, pages, description, showDescription = false } = Astro.props;
+---
+
+<a href={`/reports/${slug}`} class="group bg-surface-container-lowest rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 block">
+  <div class="h-48 relative bg-gradient-to-br from-primary via-primary-container to-primary-fixed flex items-center justify-center overflow-hidden">
+    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25% 25%, white 2px, transparent 2px), radial-gradient(circle at 75% 75%, white 2px, transparent 2px); background-size: 32px 32px;"></div>
+    <div class="relative z-10 flex flex-col items-center gap-3 text-white">
+      <span class="material-symbols-outlined" style="font-size: 64px;">{icon}</span>
+      <span class="text-xs font-bold uppercase tracking-widest opacity-80">{category}</span>
+    </div>
+  </div>
+  <div class="p-8">
+    <div class="flex items-center gap-2 text-xs font-bold text-on-primary-container uppercase tracking-widest mb-4">
+      <span class="w-2 h-2 rounded-full bg-primary-fixed"></span>
+      {category}
+      {pages && <span class="text-outline font-medium normal-case tracking-normal">· {pages} pages</span>}
+    </div>
+    <h3 class="text-xl font-bold text-primary mb-4 font-headline">{title}</h3>
+    {showDescription && description && (
+      <p class="text-secondary text-sm mb-4 leading-relaxed">{description}</p>
+    )}
+    <div class="flex justify-between items-center pt-6 border-t border-surface-container-high">
+      <span class="text-sm font-medium text-secondary italic">{date}</span>
+      <span class="bg-primary text-white p-3 rounded-full group-hover:bg-primary-container transition-colors">
+        <span class="material-symbols-outlined text-xl">arrow_forward</span>
+      </span>
+    </div>
+  </div>
+</a>

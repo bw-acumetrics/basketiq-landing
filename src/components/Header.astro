@@ -1,0 +1,38 @@
+---
+const currentPath = Astro.url.pathname;
+const navLinks = [
+  { href: '/', label: 'Overview', match: '/' },
+  { href: '/reports', label: 'All Issues', match: '/reports' },
+  { href: '/#methodology', label: 'Methodology', match: '/methodology' },
+];
+---
+
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md">
+  <nav class="flex justify-between items-center max-w-7xl mx-auto px-8 h-20 w-full">
+    <a href="/" class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-on-primary-container text-2xl">local_drink</span>
+      <div class="flex flex-col leading-tight">
+        <span class="text-sm font-bold text-on-primary-container tracking-widest uppercase">BasketIQ</span>
+        <span class="text-base font-black text-primary tracking-tight font-headline">Consumer Goods Report · Beverages</span>
+      </div>
+    </a>
+    <div class="hidden md:flex items-center gap-8">
+      {navLinks.map(link => (
+        <a
+          href={link.href}
+          class:list={[
+            "font-medium font-headline tracking-tight transition-colors",
+            currentPath === link.match || (link.match !== '/' && currentPath.startsWith(link.match))
+              ? "text-primary font-bold border-b-2 border-primary pb-1"
+              : "text-secondary hover:text-primary"
+          ]}
+        >
+          {link.label}
+        </a>
+      ))}
+      <a href="/reports/soft-drinks-q1-2026#download-form" class="bg-primary text-white px-6 py-2.5 rounded-full font-semibold hover:bg-primary-container transition-all duration-200">
+        Get the Report
+      </a>
+    </div>
+  </nav>
+</header>

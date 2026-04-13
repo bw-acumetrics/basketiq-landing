@@ -1,0 +1,140 @@
+---
+import Base from '../layouts/Base.astro';
+import ReportCard from '../components/ReportCard.astro';
+import { reports } from '../data/reports';
+
+const latest = reports[0];
+---
+
+<Base title="Consumer Goods Report — Beverages | BasketIQ">
+  <main class="pt-20">
+    <!-- Hero Section -->
+    <section class="relative min-h-[640px] flex items-center overflow-hidden bg-surface-container-low">
+      <div class="max-w-7xl mx-auto px-8 w-full grid md:grid-cols-2 gap-12 items-center py-20">
+        <div class="z-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-primary-fixed text-on-primary-fixed text-xs font-bold tracking-widest rounded-full mb-6">
+            <span class="w-2 h-2 rounded-full bg-on-primary-fixed animate-pulse"></span>
+            CONSUMER GOODS REPORT · BEVERAGES
+          </div>
+          <h1 class="text-5xl md:text-6xl font-extrabold text-primary tracking-tight leading-[1.05] mb-6 font-headline">
+            Botswana beverages,<br />measured by the basket.
+          </h1>
+          <p class="text-lg md:text-xl text-secondary mb-10 leading-relaxed max-w-xl">
+            BasketIQ publishes intelligence on Botswana's beverages category, built from real receipts collected through a WhatsApp consumer panel. No estimates. No surveys-only. Just what people actually bought.
+          </p>
+          <div class="flex flex-wrap gap-4">
+            <a href={`/reports/${latest.slug}`} class="bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all inline-block">
+              Get the Q1 Soft Drinks Snapshot
+            </a>
+            <a href="#methodology" class="bg-white text-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-surface-container-high border border-outline/10 transition-all inline-block">
+              How we collect the data
+            </a>
+          </div>
+        </div>
+        <div class="relative hidden md:flex items-center justify-center">
+          <div class="absolute -top-20 -right-20 w-96 h-96 bg-primary-fixed opacity-20 blur-3xl rounded-full"></div>
+          <div class="relative z-10 bg-gradient-to-br from-primary via-primary-container to-primary-fixed p-12 rounded-2xl shadow-2xl transform rotate-2">
+            <div class="absolute inset-0 opacity-10 rounded-2xl" style="background-image: radial-gradient(circle at 25% 25%, white 2px, transparent 2px), radial-gradient(circle at 75% 75%, white 2px, transparent 2px); background-size: 40px 40px;"></div>
+            <div class="relative flex flex-col items-center gap-4 text-white">
+              <span class="material-symbols-outlined" style="font-size: 140px;">local_drink</span>
+              <span class="text-xs font-bold uppercase tracking-widest opacity-80">Issue 01 · Soft Drinks</span>
+            </div>
+          </div>
+          <div class="absolute -bottom-10 -left-10 z-20 bg-white p-6 rounded-xl shadow-xl transform -rotate-2 border border-outline/5">
+            <div class="flex items-center gap-4">
+              <div class="p-3 bg-primary-fixed rounded-lg text-on-primary-fixed">
+                <span class="material-symbols-outlined">receipt_long</span>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-secondary uppercase tracking-widest">Q1 Sample</p>
+                <p class="text-2xl font-black text-primary">599 line items</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Market Pulse — real numbers from Q1 2026 -->
+    <section class="py-24 bg-surface">
+      <div class="max-w-7xl mx-auto px-8">
+        <div class="mb-16">
+          <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Q1 2026 · Headline Findings</p>
+          <h2 class="text-3xl font-bold text-primary mb-2">Three numbers from the Q1 snapshot.</h2>
+          <p class="text-secondary">Drawn from 599 classified soft drinks purchases across 500 verified baskets from 168 Gaborone consumers, February to April 2026.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
+            <div class="text-primary-container mb-4">
+              <span class="material-symbols-outlined text-3xl">hub</span>
+            </div>
+            <div class="text-4xl font-extrabold text-primary mb-2">70.8%</div>
+            <p class="text-secondary font-medium">of all soft drinks purchases in the Gaborone sample are brands owned by The Coca-Cola Company.</p>
+          </div>
+          <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
+            <div class="text-primary-container mb-4">
+              <span class="material-symbols-outlined text-3xl">shopping_basket</span>
+            </div>
+            <div class="text-4xl font-extrabold text-primary mb-2">13.8%</div>
+            <p class="text-secondary font-medium">of all verified baskets in the Q1 panel contained at least one soft drinks line item.</p>
+          </div>
+          <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
+            <div class="text-primary-container mb-4">
+              <span class="material-symbols-outlined text-3xl">payments</span>
+            </div>
+            <div class="text-4xl font-extrabold text-primary mb-2">P26.89</div>
+            <p class="text-secondary font-medium">average spend on the category, per basket that contains a soft drink.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Latest Issue -->
+    <section class="py-24 bg-surface-container-low">
+      <div class="max-w-5xl mx-auto px-8">
+        <div class="mb-12 text-center">
+          <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Latest Issue</p>
+          <h2 class="text-4xl font-bold text-primary mb-4 tracking-tight font-headline">Q1 2026 · Soft Drinks</h2>
+          <p class="text-secondary text-lg max-w-2xl mx-auto">The first issue in the Beverages series. Category concentration, brand share by units and revenue, price anchoring, and basket attachment.</p>
+        </div>
+        <div class="max-w-md mx-auto">
+          <ReportCard
+            slug={latest.slug}
+            title={latest.title}
+            category={latest.category}
+            date={latest.date}
+            icon={latest.icon}
+            pages={latest.pages}
+            description={latest.description}
+            showDescription={true}
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Methodology -->
+    <section id="methodology" class="py-24 bg-surface">
+      <div class="max-w-4xl mx-auto px-8">
+        <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Methodology</p>
+        <h2 class="text-3xl font-bold text-primary mb-8 font-headline">How we collect the data.</h2>
+        <div class="space-y-6 text-on-surface-variant text-lg leading-relaxed">
+          <p>
+            Every number in a BasketIQ report comes from a real till slip. Consumers in Gaborone send us photographs of their grocery receipts through WhatsApp. We extract line items, match them against a curated product catalog, and aggregate across the panel to produce category-level views.
+          </p>
+          <p>
+            We do not model, extrapolate, or back-fill. When a sample is small, we say so. When a finding is directional rather than conclusive, we flag it. Every chart in every issue carries the exact sample size it was computed on.
+          </p>
+          <p>
+            The public Consumer Goods Report series is a teaser of what BasketIQ's panel can answer. Custom questions — brand-level deep dives, retailer-resolved pricing, category-specific cuts, private surveys placed to active shoppers — are available to subscribers on request.
+          </p>
+        </div>
+        <div class="mt-12">
+          <a href="mailto:hello@basketiq.co.bw" class="bg-primary text-white px-8 py-4 rounded-full font-bold text-base hover:bg-primary-container transition-all inline-flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg">mail</span>
+            Ask us a custom question
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>

@@ -1,0 +1,154 @@
+---
+import Base from '../../layouts/Base.astro';
+import ReportCard from '../../components/ReportCard.astro';
+import { reports, getReport, getRelatedReports } from '../../data/reports';
+import type { GetStaticPaths } from 'astro';
+
+export const getStaticPaths: GetStaticPaths = () => {
+  return reports.map(report => ({
+    params: { slug: report.slug },
+  }));
+};
+
+const { slug } = Astro.params;
+const report = getReport(slug as string)!;
+const related = getRelatedReports(report.related);
+---
+
+<Base title={`${report.title} | BasketIQ`} description={report.description}>
+  <main class="pt-20">
+    <!-- Hero -->
+    <section class="relative bg-gradient-to-br from-primary via-primary-container to-primary-fixed py-24 overflow-hidden">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 30%, white 2px, transparent 2px), radial-gradient(circle at 80% 70%, white 2px, transparent 2px); background-size: 48px 48px;"></div>
+      <div class="max-w-7xl mx-auto px-8 relative z-10 grid md:grid-cols-3 gap-12 items-center">
+        <div class="md:col-span-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/10 text-white text-xs font-bold tracking-widest rounded-full mb-6 backdrop-blur-sm">
+            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            CONSUMER GOODS REPORT · {report.category.toUpperCase()}
+          </div>
+          <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.1] mb-6 font-headline">
+            {report.title}
+          </h1>
+          <p class="text-white/80 text-lg leading-relaxed mb-8 max-w-2xl">
+            {report.description}
+          </p>
+          <div class="flex items-center gap-6 text-white/60 text-sm mb-10">
+            <span class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-white/80 text-lg">calendar_today</span>
+              Published {report.date}
+            </span>
+            <span class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-white/80 text-lg">description</span>
+              {report.pages} pages
+            </span>
+          </div>
+          <a href="#download-form" class="bg-white text-primary px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all inline-block">
+            Download Full Report
+          </a>
+        </div>
+        <div class="relative hidden md:flex items-center justify-center">
+          <div class="w-48 h-48 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+            <span class="material-symbols-outlined text-white" style="font-size: 120px;">{report.icon}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Executive Summary + Download Form -->
+    <section class="py-24 bg-surface">
+      <div class="max-w-7xl mx-auto px-8">
+        <div class="grid lg:grid-cols-12 gap-16">
+          <!-- Summary Content -->
+          <div class="lg:col-span-7">
+            <h2 class="text-3xl font-bold text-primary mb-8 font-headline">Executive Summary</h2>
+            <p class="text-on-surface-variant text-lg leading-relaxed mb-12">
+              {report.summary}
+            </p>
+
+            <!-- Insight Grid -->
+            <h3 class="text-sm font-bold text-on-primary-container uppercase tracking-widest mb-6">What's inside</h3>
+            <div class="grid sm:grid-cols-2 gap-6">
+              {report.insights.map(insight => (
+                <div class="bg-surface-container-low p-6 rounded-xl">
+                  <div class="flex items-center gap-3 mb-3">
+                    <span class="material-symbols-outlined text-on-primary-container text-xl">{insight.icon}</span>
+                    <h3 class="font-bold text-primary text-sm font-headline">{insight.title}</h3>
+                  </div>
+                  <p class="text-secondary text-sm leading-relaxed">{insight.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- Download Form -->
+          <div class="lg:col-span-5" id="download-form">
+            <div class="bg-surface-container-lowest p-8 rounded-xl shadow-xl sticky top-28">
+              <h3 class="text-xl font-bold text-primary mb-2 font-headline">Get the full report</h3>
+              <p class="text-secondary text-sm mb-8">Enter your work details and we'll send you the PDF. We'll also let you know when the next issue in the Beverages series drops.</p>
+              <form class="space-y-5" action="https://formspree.io/f/xojpqbpk" method="POST">
+                <input type="hidden" name="_gotcha" value="" />
+                <input type="hidden" name="report" value={report.slug} />
+                <input type="hidden" name="_next" value={report.pdf} />
+                <div>
+                  <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Full Name</label>
+                  <input type="text" name="name" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your full name" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Work Email</label>
+                  <input type="email" name="email" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="work@company.com" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Company</label>
+                  <input type="text" name="company" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your company" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Role</label>
+                  <input type="text" name="position" class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your role (optional)" />
+                </div>
+                <button type="submit" class="w-full bg-primary text-white px-6 py-4 rounded-full font-bold text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2">
+                  <span class="material-symbols-outlined text-lg">download</span>
+                  Download the PDF
+                </button>
+                <p class="text-xs text-outline text-center leading-relaxed">
+                  By submitting, you agree to receive BasketIQ report updates. We respect your data.
+                </p>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Related Reports -->
+    {related.length > 0 && (
+      <section class="py-24 bg-surface-container-low">
+        <div class="max-w-7xl mx-auto px-8">
+          <div class="flex justify-between items-end mb-12">
+            <div>
+              <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Related Analysis</p>
+              <h2 class="text-3xl font-bold text-primary font-headline">You may also like</h2>
+            </div>
+            <a href="/reports" class="text-primary font-bold flex items-center gap-2 hover:opacity-70 transition-opacity">
+              View all reports
+              <span class="material-symbols-outlined text-lg">arrow_forward</span>
+            </a>
+          </div>
+          <div class="grid md:grid-cols-2 gap-8">
+            {related.map(r => (
+              <ReportCard
+                slug={r.slug}
+                title={r.title}
+                category={r.category}
+                date={r.date}
+                icon={r.icon}
+                pages={r.pages}
+                description={r.description}
+                showDescription={true}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+  </main>
+</Base>
