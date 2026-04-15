@@ -5,9 +5,52 @@ import Footer from '../components/Footer.astro';
 interface Props {
   title: string;
   description?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const { title, description = 'The BasketIQ Consumer Goods Report for Beverages. Category intelligence on Botswana drinks, built from real receipts collected through a WhatsApp consumer panel.' } = Astro.props;
+const { title, description = 'The BasketIQ Consumer Goods Report for Beverages. Category intelligence on Botswana drinks, built from real receipts collected through a WhatsApp consumer panel.', jsonLd } = Astro.props;
+
+const SITE_URL = 'https://basketiq.co.bw';
+
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'BasketIQ',
+  alternateName: 'Basket IQ',
+  url: SITE_URL,
+  logo: `${SITE_URL}/logo.png`,
+  email: 'hello@basketiq.co.bw',
+  description: 'BasketIQ is a consumer intelligence platform for Botswana. Consumers upload supermarket receipts via WhatsApp and earn airtime rewards. Anonymised, aggregated SKU-level purchase data is sold as intelligence products to FMCG brands, retailers, and research buyers. The first SKU-level consumer purchase data product in the Botswana market.',
+  foundingDate: '2025',
+  areaServed: {
+    '@type': 'Country',
+    name: 'Botswana',
+  },
+  knowsAbout: [
+    'FMCG market research',
+    'Consumer purchase data',
+    'Receipt data',
+    'Retail intelligence',
+    'Botswana consumer goods',
+    'Basket analysis',
+    'Shopper segmentation',
+  ],
+  sameAs: [],
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'BasketIQ',
+  url: SITE_URL,
+  description: 'SKU-level consumer purchase intelligence for Botswana FMCG brands and retailers, built from real receipts collected via a WhatsApp consumer panel.',
+  publisher: { '@type': 'Organization', name: 'BasketIQ' },
+};
+
+const baseSchemas = [organizationSchema, websiteSchema];
+const allSchemas = jsonLd
+  ? [...baseSchemas, ...(Array.isArray(jsonLd) ? jsonLd : [jsonLd])]
+  : baseSchemas;
 ---
 
 <!DOCTYPE html>
@@ -16,9 +59,20 @@ const { title, description = 'The BasketIQ Consumer Goods Report for Beverages. 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content={description} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={SITE_URL} />
+  <meta property="og:site_name" content="BasketIQ" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href={SITE_URL + Astro.url.pathname} />
   <title>{title}</title>
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="fc26a4b8-6274-4bac-8120-29f915f2bb3b"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  {allSchemas.map((schema) => (
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  ))}
 </head>
 <body class="text-on-surface font-body bg-surface" style="min-height: max(884px, 100dvh);">
   <Header />

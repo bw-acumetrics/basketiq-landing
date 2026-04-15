@@ -1,0 +1,114 @@
+---
+import Base from '../layouts/Base.astro';
+
+interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+const faqs: FaqEntry[] = [
+  {
+    question: 'What is BasketIQ?',
+    answer: 'BasketIQ is a consumer intelligence platform for Botswana. Consumers send supermarket receipt photos via WhatsApp and earn airtime rewards. The anonymised, aggregated SKU-level purchase data is sold as intelligence products to FMCG brands, retailers, and research buyers. It is the first SKU-level consumer purchase data product available in the Botswana market.',
+  },
+  {
+    question: 'Who runs BasketIQ?',
+    answer: 'BasketIQ is built and operated in Botswana. The platform is registered locally and complies with the Botswana Data Protection Act 2018. The team engages proactively with the Information and Data Protection Commission.',
+  },
+  {
+    question: 'How does BasketIQ collect data?',
+    answer: 'Consumers in Botswana opt in via WhatsApp, complete a 2-minute onboarding (first name and city, no app download), and send photos of their shopping receipts. Each receipt is processed by a vision pipeline (PaddleOCR plus a vision-language model) to extract the store, date, line items, quantities, prices, and basket total. Consumers confirm the extraction and earn airtime points based on receipt clarity and a streak multiplier.',
+  },
+  {
+    question: 'What data does BasketIQ sell?',
+    answer: 'Anonymised, aggregated category intelligence — never individual consumer data. Products include category trend reports (monthly and quarterly), basket intelligence (cross-category relationships), shopper segmentation, promotional effectiveness measurement, and bespoke research projects. The first published report covers the Botswana beverages category.',
+  },
+  {
+    question: 'How is BasketIQ different from Nielsen, Kantar, or Circana?',
+    answer: 'Nielsen, Kantar, and the major global research firms do not operate in Botswana. There is no syndicated SKU-level consumer purchase data product in the Botswana market apart from BasketIQ. Statistics Botswana publishes CPI movements but no brand-level or basket-level data. Retailer EPOS systems are siloed and not shared cross-retailer. BasketIQ fills that gap with continuous, receipt-derived data.',
+  },
+  {
+    question: 'Which retailers and stores are covered?',
+    answer: 'Coverage grows with the consumer panel. Receipts from any Botswana retailer can be uploaded — supermarkets (Choppies, Spar, Pick n Pay, Shoprite, Woolworths, Sefalana), convenience stores, butcheries, and pharmacies. Store coverage and basket counts per retailer are reported transparently in every intelligence product.',
+  },
+  {
+    question: 'What categories does BasketIQ cover?',
+    answer: 'BasketIQ aims for full FMCG coverage. The published report cadence starts with beverages (the Q1 2026 Soft Drinks Snapshot) and expands to other categories as panel volume grows. Custom research can address any category present in the receipt data.',
+  },
+  {
+    question: 'How are consumers rewarded?',
+    answer: 'Consumers earn points for each verified receipt — 10 base points scaled by OCR confidence and a streak multiplier — plus a 20-point signup bonus and a 30-point first-receipt bonus. Points convert to airtime (P5 for 100 points, P15 for 250 points) or gift cards (P30 for 500 points, P75 for 1000 points). Airtime is the primary reward because it has universal value and requires no bank account.',
+  },
+  {
+    question: 'How does BasketIQ ensure data quality?',
+    answer: 'Multiple controls: perceptual-hash duplicate detection before OCR, a 90-day receipt age limit, OCR confidence scoring (low confidence reduces points but does not reject), an LLM-based divergence check that verifies line items sum against the printed total, upload velocity limits, human-in-the-loop confirmation by the consumer, and an admin fraud review queue. Receipt quality matters commercially — bad data destroys the product, so quality controls are tight.',
+  },
+  {
+    question: 'How does BasketIQ handle privacy?',
+    answer: 'BasketIQ complies with the Botswana Data Protection Act 2018. Consumers give explicit, informed consent at onboarding. Individual consumer data is never sold in identifiable form — every commercial product is anonymised and aggregated. Consumers can request erasure under the DPA at any time.',
+  },
+  {
+    question: 'How can a brand or retailer access BasketIQ data?',
+    answer: 'Reach out to hello@basketiq.co.bw. Access is offered via subscription tiers for ongoing intelligence, per-project pricing for custom research, and per-campaign engagement for promotional effectiveness measurement. The first commercial buyer conversations are scheduled after the platform reaches its three-month continuous-data threshold.',
+  },
+  {
+    question: 'Where does BasketIQ operate next?',
+    answer: 'Botswana is the first market. The expansion pathway runs through Zimbabwe, Zambia, and Namibia. Each new market adds data volume, increases cross-border comparative intelligence value, and extends the longitudinal data moat.',
+  },
+  {
+    question: 'How can I contact BasketIQ?',
+    answer: 'Email hello@basketiq.co.bw for commercial enquiries, partnerships, or media. Consumers join via WhatsApp directly — see the homepage for the link.',
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+};
+---
+
+<Base
+  title="FAQ — BasketIQ Consumer Intelligence for Botswana"
+  description="Frequently asked questions about BasketIQ — the WhatsApp-native consumer intelligence platform for Botswana FMCG brands and retailers. How data is collected, what is sold, how privacy works."
+  jsonLd={faqSchema}
+>
+  <main class="pt-32 pb-20 max-w-3xl mx-auto px-8">
+    <header class="mb-12">
+      <p class="text-xs font-bold tracking-widest uppercase text-primary mb-3">FAQ</p>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-primary tracking-tight leading-tight font-headline mb-4">
+        Frequently asked questions
+      </h1>
+      <p class="text-lg text-secondary leading-relaxed">
+        Everything a brand, retailer, journalist, or curious consumer might want to know about BasketIQ — the consumer intelligence platform for Botswana built on WhatsApp receipts and airtime rewards.
+      </p>
+    </header>
+
+    <section class="space-y-8">
+      {faqs.map((faq) => (
+        <article class="border-b border-outline/10 pb-8">
+          <h2 class="text-xl md:text-2xl font-bold text-on-surface font-headline mb-3 leading-snug">
+            {faq.question}
+          </h2>
+          <p class="text-base text-secondary leading-relaxed">
+            {faq.answer}
+          </p>
+        </article>
+      ))}
+    </section>
+
+    <footer class="mt-16 p-8 bg-surface-container-low rounded-2xl">
+      <h2 class="text-2xl font-bold text-primary font-headline mb-3">Still have questions?</h2>
+      <p class="text-secondary mb-4">
+        Email <a href="mailto:hello@basketiq.co.bw" class="text-primary font-semibold underline">hello@basketiq.co.bw</a> — we reply within one business day.
+      </p>
+    </footer>
+  </main>
+</Base>
