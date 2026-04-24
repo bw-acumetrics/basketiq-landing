@@ -1,0 +1,312 @@
+---
+// Web survey tokenised page — reached via /s/{token}.
+// Cloudflare Pages rewrites /s/* → /s/index.html (see public/_redirects); the
+// page reads the token from the pathname on mount, client-side fetches the
+// survey from the public API, and POSTs the submission.
+const API_BASE = 'https://api.basketiq.co.bw';
+---
+
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>BasketIQ survey</title>
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="fc26a4b8-6274-4bac-8120-29f915f2bb3b"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body class="text-on-surface font-body bg-surface min-h-screen">
+  <main class="max-w-xl mx-auto px-6 py-12 md:py-16" data-api-base={API_BASE}>
+    <!-- Loading -->
+    <section id="state-loading" class="text-center py-20 text-secondary">
+      <p class="text-sm uppercase tracking-widest font-bold">Loading survey…</p>
+    </section>
+
+    <!-- Form -->
+    <section id="state-form" class="hidden">
+      <div class="mb-8">
+        <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">BasketIQ survey</p>
+        <h1 id="survey-title" class="text-3xl md:text-4xl font-extrabold text-primary tracking-tight leading-tight font-headline"></h1>
+        <p id="survey-description" class="text-secondary mt-3 leading-relaxed"></p>
+        <p class="text-on-surface-variant text-sm mt-4">Complete the survey below to earn <span id="survey-points" class="font-bold text-primary"></span> points.</p>
+      </div>
+
+      <form id="survey-form" class="space-y-6">
+        <div id="questions-container" class="space-y-6"></div>
+
+        <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true" />
+
+        <div id="form-error" class="hidden text-sm text-error-container bg-error p-3 rounded-lg"></div>
+
+        <button type="submit" id="submit-button"
+          class="w-full bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+          Submit and earn points
+        </button>
+      </form>
+    </section>
+
+    <!-- Success -->
+    <section id="state-success" class="hidden text-center py-16">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-fixed text-on-primary-fixed mb-6">
+        <span class="material-symbols-outlined" style="font-size: 36px;">check</span>
+      </div>
+      <h1 class="text-3xl md:text-4xl font-extrabold text-primary tracking-tight leading-tight font-headline mb-4">Thanks for completing this survey.</h1>
+      <p class="text-lg text-secondary">Your <span id="success-points" class="font-bold text-primary"></span> points have been added to your BasketIQ balance.</p>
+    </section>
+
+    <!-- Error -->
+    <section id="state-error" class="hidden text-center py-16">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container text-on-error-container mb-6">
+        <span class="material-symbols-outlined" style="font-size: 36px;">info</span>
+      </div>
+      <h1 id="error-title" class="text-2xl md:text-3xl font-extrabold text-primary tracking-tight leading-tight font-headline mb-4"></h1>
+      <p id="error-detail" class="text-secondary leading-relaxed"></p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const main = document.querySelector('main[data-api-base]');
+      if (!main) return;
+      const apiBase = main.getAttribute('data-api-base');
+
+      const el = (id) => document.getElementById(id);
+      const show = (id) => {
+        ['state-loading', 'state-form', 'state-success', 'state-error'].forEach((s) => {
+          const node = el(s);
+          if (!node) return;
+          if (s === id) node.classList.remove('hidden');
+          else node.classList.add('hidden');
+        });
+      };
+
+      const setError = (title, detail) => {
+        const titleEl = el('error-title');
+        const detailEl = el('error-detail');
+        if (titleEl) titleEl.textContent = title;
+        if (detailEl) detailEl.textContent = detail;
+        show('state-error');
+      };
+
+      const readToken = () => {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        // /s/{token} → parts = ['s', '{token}']; /s/{token}/ handled the same
+        if (parts.length >= 2 && parts[0] === 's') return parts[1];
+        return null;
+      };
+
+      const questionCard = (q) => {
+        const card = document.createElement('div');
+        card.className = 'bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/40 shadow-sm';
+        card.dataset.fieldName = q.field_name;
+        card.dataset.questionType = q.question_type;
+        card.dataset.required = q.required ? '1' : '0';
+
+        const label = document.createElement('label');
+        label.className = 'block text-primary font-bold mb-4 text-base';
+        label.textContent = q.question_text + (q.required ? '' : ' (optional)');
+        card.appendChild(label);
+
+        if (q.question_type === 'single_choice' || q.question_type === 'multi_choice') {
+          const group = document.createElement('div');
+          group.className = 'space-y-2';
+          const inputType = q.question_type === 'single_choice' ? 'radio' : 'checkbox';
+          (q.options || []).forEach((opt, idx) => {
+            const optId = `${q.field_name}_opt_${idx}`;
+            const row = document.createElement('label');
+            row.htmlFor = optId;
+            row.className = 'flex items-center gap-3 p-3 rounded-lg border border-outline-variant/30 hover:bg-surface-container-low cursor-pointer transition-colors';
+            const input = document.createElement('input');
+            input.type = inputType;
+            input.name = q.field_name;
+            input.id = optId;
+            input.value = opt.id;
+            input.className = 'w-4 h-4 accent-primary';
+            const title = document.createElement('span');
+            title.className = 'text-on-surface';
+            title.textContent = opt.title;
+            row.appendChild(input);
+            row.appendChild(title);
+            group.appendChild(row);
+          });
+          card.appendChild(group);
+        } else if (q.question_type === 'free_text') {
+          const ta = document.createElement('textarea');
+          ta.name = q.field_name;
+          ta.maxLength = 600;
+          ta.rows = 4;
+          ta.className = 'w-full p-3 rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary-fixed-dim';
+          ta.placeholder = 'Your answer (max 600 characters)';
+          card.appendChild(ta);
+        } else if (q.question_type === 'rating') {
+          const group = document.createElement('div');
+          group.className = 'flex gap-2';
+          for (let n = 1; n <= 5; n++) {
+            const optId = `${q.field_name}_r${n}`;
+            const row = document.createElement('label');
+            row.htmlFor = optId;
+            row.className = 'flex-1 flex items-center justify-center p-4 rounded-lg border border-outline-variant/30 hover:bg-surface-container-low cursor-pointer transition-colors font-bold text-primary';
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = q.field_name;
+            input.id = optId;
+            input.value = String(n);
+            input.className = 'sr-only peer';
+            const text = document.createElement('span');
+            text.textContent = String(n);
+            text.className = 'peer-checked:text-primary-fixed peer-checked:scale-125 transition-transform';
+            row.appendChild(input);
+            row.appendChild(text);
+            group.appendChild(row);
+          }
+          card.appendChild(group);
+        }
+
+        return card;
+      };
+
+      const gatherAnswers = () => {
+        const answers = {};
+        const cards = document.querySelectorAll('#questions-container > div[data-field-name]');
+        for (const card of cards) {
+          const field = card.dataset.fieldName;
+          const type = card.dataset.questionType;
+          const required = card.dataset.required === '1';
+
+          let value;
+          if (type === 'multi_choice') {
+            const checked = card.querySelectorAll(`input[name="${field}"]:checked`);
+            value = Array.from(checked).map((el) => el.value);
+            if (required && value.length === 0) return { error: `Please answer: ${field}` };
+          } else if (type === 'single_choice' || type === 'rating') {
+            const picked = card.querySelector(`input[name="${field}"]:checked`);
+            value = picked ? picked.value : '';
+            if (required && !value) return { error: `Please answer: ${field}` };
+          } else if (type === 'free_text') {
+            const ta = card.querySelector(`textarea[name="${field}"]`);
+            value = ta ? ta.value.trim() : '';
+            if (required && !value) return { error: `Please answer: ${field}` };
+          }
+          if (value !== '' && !(Array.isArray(value) && value.length === 0)) {
+            answers[field] = value;
+          }
+        }
+        return { answers };
+      };
+
+      const render = (survey) => {
+        el('survey-title').textContent = survey.title;
+        if (survey.description) {
+          el('survey-description').textContent = survey.description;
+        } else {
+          el('survey-description').style.display = 'none';
+        }
+        el('survey-points').textContent = survey.points_reward;
+
+        const container = el('questions-container');
+        survey.questions.forEach((q) => container.appendChild(questionCard(q)));
+
+        el('survey-form').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const errorEl = el('form-error');
+          errorEl.classList.add('hidden');
+
+          const { answers, error } = gatherAnswers();
+          if (error) {
+            errorEl.textContent = error;
+            errorEl.classList.remove('hidden');
+            return;
+          }
+
+          const honeypot = event.target.elements.website ? event.target.elements.website.value : '';
+          const button = el('submit-button');
+          const originalLabel = button.innerHTML;
+          button.disabled = true;
+          button.innerHTML = 'Submitting…';
+
+          try {
+            const resp = await fetch(`${apiBase}/v1/public/surveys/${token}/submit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ answers, website: honeypot }),
+            });
+            if (resp.status === 200) {
+              const body = await resp.json();
+              el('success-points').textContent = body.points_awarded;
+              if (window.umami && typeof window.umami.track === 'function') {
+                window.umami.track('survey_completed', { survey_id: survey.survey_id });
+              }
+              show('state-success');
+              return;
+            }
+            if (resp.status === 410) {
+              const body = await resp.json().catch(() => ({}));
+              if (body.detail === 'Survey already completed') {
+                setError("You've already completed this survey.", 'Points were added to your balance.');
+              } else {
+                setError('This link has expired.', 'Open WhatsApp and tap the survey again to get a new one.');
+              }
+              return;
+            }
+            if (resp.status === 422) {
+              const body = await resp.json().catch(() => ({}));
+              errorEl.textContent = body.detail || 'Please answer all required questions.';
+              errorEl.classList.remove('hidden');
+              button.disabled = false;
+              button.innerHTML = originalLabel;
+              return;
+            }
+            if (resp.status === 404) {
+              setError('Link not found.', 'Double-check the URL you were sent on WhatsApp.');
+              return;
+            }
+            setError('Something went wrong.', 'Try again in a minute.');
+          } catch (err) {
+            console.error('survey submit failed', err);
+            button.disabled = false;
+            button.innerHTML = originalLabel;
+            errorEl.textContent = 'Network error. Try again in a minute.';
+            errorEl.classList.remove('hidden');
+          }
+        });
+
+        show('state-form');
+      };
+
+      const token = readToken();
+      if (!token) {
+        setError('Link not found.', 'Double-check the URL you were sent on WhatsApp.');
+        return;
+      }
+
+      fetch(`${apiBase}/v1/public/surveys/${token}`)
+        .then(async (resp) => {
+          if (resp.status === 200) {
+            const survey = await resp.json();
+            render(survey);
+            return;
+          }
+          if (resp.status === 410) {
+            const body = await resp.json().catch(() => ({}));
+            if (body.detail === 'Survey already completed') {
+              setError("You've already completed this survey.", 'Points were added to your balance.');
+            } else {
+              setError('This link has expired.', 'Open WhatsApp and tap the survey again to get a new one.');
+            }
+            return;
+          }
+          if (resp.status === 404) {
+            setError('Link not found.', 'Double-check the URL you were sent on WhatsApp.');
+            return;
+          }
+          setError('Something went wrong.', 'Try again in a minute.');
+        })
+        .catch((err) => {
+          console.error('survey load failed', err);
+          setError('Something went wrong.', 'Try again in a minute.');
+        });
+    })();
+  </script>
+</body>
+</html>
