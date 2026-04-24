@@ -1,8 +1,8 @@
 ---
-// Web survey tokenised page — reached via /s/{token}.
-// Cloudflare Pages rewrites /s/* → /s/index.html (see public/_redirects); the
-// page reads the token from the pathname on mount, client-side fetches the
-// survey from the public API, and POSTs the submission.
+// Web survey tokenised page — reached via /s/?t={access_token}.
+// Query-string form sidesteps CF Pages' static-output routing (no _redirects
+// rewrite needed). The page reads the token from the URL on mount,
+// client-side fetches the survey from the public API, and POSTs the submission.
 const API_BASE = 'https://api.basketiq.co.bw';
 ---
 
@@ -90,10 +90,8 @@ const API_BASE = 'https://api.basketiq.co.bw';
       };
 
       const readToken = () => {
-        const parts = window.location.pathname.split('/').filter(Boolean);
-        // /s/{token} → parts = ['s', '{token}']; /s/{token}/ handled the same
-        if (parts.length >= 2 && parts[0] === 's') return parts[1];
-        return null;
+        const t = new URLSearchParams(window.location.search).get('t');
+        return t ? t.trim() : null;
       };
 
       const questionCard = (q) => {
