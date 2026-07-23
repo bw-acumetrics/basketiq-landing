@@ -1,0 +1,215 @@
+---
+// Shared price-list snapshot page — reached via /l/?t={share_token}.
+// Query-string form sidesteps CF Pages' static-output routing, same as /s/.
+// Read-only: the token is the capability, there is nothing to submit.
+const API_BASE = 'https://api.basketiq.co.bw';
+const WHATSAPP_URL = 'https://wa.me/26778510584?text=Hi';
+---
+
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>What my shopping costs — BasketIQ</title>
+  <meta property="og:title" content="🛒 What my shopping costs — BasketIQ" />
+  <meta property="og:description" content="Typical prices from real receipts across Botswana." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="BasketIQ" />
+  <meta name="twitter:card" content="summary" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="fc26a4b8-6274-4bac-8120-29f915f2bb3b"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body class="text-on-surface font-body bg-surface min-h-screen">
+  <main class="max-w-xl mx-auto px-6 py-12 md:py-16" data-api-base={API_BASE}>
+    <!-- Loading -->
+    <section id="state-loading" class="text-center py-20 text-secondary">
+      <p class="text-sm uppercase tracking-widest font-bold">Loading list…</p>
+    </section>
+
+    <!-- List -->
+    <section id="state-list" class="hidden">
+      <div class="mb-8">
+        <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">BasketIQ</p>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-primary tracking-tight leading-tight font-headline">What my shopping costs</h1>
+        <p id="checked-on" class="text-on-surface-variant text-sm mt-3"></p>
+      </div>
+
+      <div id="items" class="space-y-3"></div>
+
+      <div class="mt-8 bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/40">
+        <p class="text-2xl font-extrabold text-primary font-headline">Estimated total: <span id="total"></span></p>
+        <p id="priced-count" class="text-secondary text-sm mt-1"></p>
+      </div>
+
+      <p class="text-on-surface-variant text-sm mt-6 leading-relaxed">These are typical prices across shops, not a quote.</p>
+
+      <a href={WHATSAPP_URL} id="cta"
+        class="no-print mt-10 w-full bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all inline-block text-center">
+        Price your own list — chat to BasketIQ on WhatsApp
+      </a>
+
+      <p class="print-only hidden text-sm mt-8">basketiq.co.bw</p>
+    </section>
+
+    <!-- Not found -->
+    <section id="state-not-found" class="hidden text-center py-16">
+      <h1 class="text-2xl md:text-3xl font-extrabold text-primary tracking-tight leading-tight font-headline mb-4">This list link doesn't exist.</h1>
+      <p class="text-secondary leading-relaxed">Double-check the link you were sent on WhatsApp.</p>
+      <a href={WHATSAPP_URL}
+        class="no-print mt-10 bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all inline-block">
+        Price your own list — chat to BasketIQ on WhatsApp
+      </a>
+    </section>
+
+    <!-- Soft error (transient) -->
+    <section id="state-error" class="hidden text-center py-16">
+      <h1 class="text-2xl md:text-3xl font-extrabold text-primary tracking-tight leading-tight font-headline mb-4">Couldn't load this list — try again</h1>
+      <p class="text-secondary leading-relaxed">Something went wrong on our side. The link is still fine.</p>
+      <button type="button" id="retry-button"
+        class="no-print mt-8 bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all">
+        Try again
+      </button>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const main = document.querySelector('main[data-api-base]');
+      if (!main) return;
+      const apiBase = main.getAttribute('data-api-base');
+
+      const el = (id) => document.getElementById(id);
+      const show = (id) => {
+        ['state-loading', 'state-list', 'state-not-found', 'state-error'].forEach((s) => {
+          const node = el(s);
+          if (!node) return;
+          if (s === id) node.classList.remove('hidden');
+          else node.classList.add('hidden');
+        });
+      };
+
+      const readToken = () => {
+        const t = new URLSearchParams(window.location.search).get('t');
+        return t ? t.trim() : null;
+      };
+
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      // Mirrors the WhatsApp reply's "%d %b %Y" — the year is load-bearing.
+      // Formats the ISO date as sent, with no timezone shift.
+      const day = (iso) => {
+        if (!iso) return 'unknown';
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+        if (!m) return 'unknown';
+        return `${m[3]} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+      };
+
+      const itemRow = (item) => {
+        const row = document.createElement('div');
+        row.className = 'bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/40';
+
+        const name = document.createElement('p');
+        name.className = 'text-on-surface font-semibold';
+
+        const detail = document.createElement('p');
+        detail.className = 'text-secondary text-sm mt-1';
+
+        if (item.outcome === 'priced' && item.median !== null) {
+          name.textContent = `✅ ${item.display_name} — P${item.median}`;
+          let text = `P${item.p25}–P${item.p75}, ${item.n} obs, latest ${day(item.latest)}`;
+          if (item.is_fallback) text += ' (older data)';
+          detail.textContent = text;
+        } else if (item.outcome === 'not_covered') {
+          name.textContent = `⚪ ${item.term} — not covered yet`;
+        } else if (item.outcome === 'unmatched') {
+          name.textContent = `❔ ${item.term} — couldn't find this product`;
+        } else {
+          name.textContent = `❔ ${item.term} — not enough data yet`;
+        }
+
+        row.appendChild(name);
+        if (detail.textContent) row.appendChild(detail);
+        return row;
+      };
+
+      const render = (list) => {
+        el('checked-on').textContent = `Prices as checked on ${day(list.created_at)}`;
+        // Display only — the API's estimated_total is already the right total.
+        el('total').textContent = `P${list.estimated_total}`;
+        el('priced-count').textContent = `${list.priced_count} of ${list.items.length} items priced`;
+
+        const container = el('items');
+        container.replaceChildren();
+        list.items.forEach((item) => container.appendChild(itemRow(item)));
+
+        show('state-list');
+      };
+
+      const load = (token) => {
+        show('state-loading');
+        fetch(`${apiBase}/v1/public/lists/${encodeURIComponent(token)}`)
+          .then(async (resp) => {
+            if (resp.status === 200) {
+              render(await resp.json());
+              return;
+            }
+            if (resp.status === 404) {
+              show('state-not-found');
+              return;
+            }
+            show('state-error');
+          })
+          .catch((err) => {
+            console.error('list load failed', err);
+            show('state-error');
+          });
+      };
+
+      const token = readToken();
+      if (!token) {
+        show('state-not-found');
+        return;
+      }
+
+      const retry = el('retry-button');
+      if (retry) retry.addEventListener('click', () => load(token));
+
+      load(token);
+    })();
+  </script>
+
+  <style is:global>
+    @media print {
+      @page { margin: 12mm; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      /* !important throughout: these lose to the Tailwind utility classes otherwise. */
+      body { background: #fff !important; color: #000; font-size: 10pt; min-height: 0 !important; }
+      #state-list * { color: #000 !important; background: transparent !important; }
+      main { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+      #state-list h1 { font-size: 16pt; }
+      #state-list > div:first-child { margin-bottom: 8pt; }
+      /* A 15-item list has to fit one page, so the cards flatten to ruled rows. */
+      #items > div {
+        border: 0 !important;
+        border-bottom: 1px solid #ddd !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 2pt 0 !important;
+        break-inside: avoid;
+      }
+      #items > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }
+      #items p { margin: 0 !important; }
+      #state-list > div:last-of-type {
+        border: 0 !important;
+        border-radius: 0 !important;
+        padding: 6pt 0 0 0 !important;
+        margin-top: 4pt !important;
+      }
+      #total { font-size: 13pt; }
+    }
+  </style>
+</body>
+</html>
