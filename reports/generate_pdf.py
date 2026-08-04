@@ -1,9 +1,14 @@
-"""Generate styled PDF report from markdown."""
+"""Generate styled PDF report from markdown.
+
+Usage: python reports/generate_pdf.py [md_file] [pdf_file]
+"""
+import sys
+
 import markdown
 from weasyprint import HTML
 
-MD_FILE = "reports/soft-drinks-q1-2026.md"
-PDF_FILE = "reports/BasketIQ-Beverages-Soft-Drinks-Q1-2026.pdf"
+MD_FILE = sys.argv[1] if len(sys.argv) > 1 else "reports/soft-drinks-q1-2026.md"
+PDF_FILE = sys.argv[2] if len(sys.argv) > 2 else "reports/BasketIQ-Beverages-Soft-Drinks-Q1-2026.pdf"
 
 CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');

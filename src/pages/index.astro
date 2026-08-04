@@ -6,7 +6,7 @@ import { reports } from '../data/reports';
 const latest = reports[0];
 ---
 
-<Base title="Consumer Goods Report — Beverages | BasketIQ">
+<Base title="Consumer Goods Report | BasketIQ">
   <main class="pt-20">
     <!-- Hero Section -->
     <section class="relative min-h-[640px] flex items-center overflow-hidden bg-surface-container-low">
@@ -14,17 +14,17 @@ const latest = reports[0];
         <div class="z-10">
           <div class="inline-flex items-center gap-2 px-3 py-1 bg-primary-fixed text-on-primary-fixed text-xs font-bold tracking-widest rounded-full mb-6">
             <span class="w-2 h-2 rounded-full bg-on-primary-fixed animate-pulse"></span>
-            CONSUMER GOODS REPORT · BEVERAGES
+            CONSUMER GOODS REPORT
           </div>
           <h1 class="text-5xl md:text-6xl font-extrabold text-primary tracking-tight leading-[1.05] mb-6 font-headline">
-            Botswana beverages,<br />measured by the basket.
+            Botswana groceries,<br />measured by the basket.
           </h1>
           <p class="text-lg md:text-xl text-secondary mb-10 leading-relaxed max-w-xl">
-            BasketIQ publishes intelligence on Botswana's beverages category, built from real receipts collected through a WhatsApp consumer panel. No estimates. No surveys-only. Just what people actually bought.
+            BasketIQ publishes intelligence on Botswana's consumer goods categories, built from real receipts collected through a WhatsApp consumer panel. No estimates. No surveys-only. Just what people actually bought.
           </p>
           <div class="flex flex-wrap gap-4">
             <a href={`/reports/${latest.slug}`} class="bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all inline-block">
-              Get the Q1 Soft Drinks Snapshot
+              Get the Milk After VAT Report
             </a>
             <a href="#methodology" class="bg-white text-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-surface-container-high border border-outline/10 transition-all inline-block">
               How we collect the data
@@ -36,8 +36,8 @@ const latest = reports[0];
           <div class="relative z-10 bg-gradient-to-br from-primary via-primary-container to-primary-fixed p-12 rounded-2xl shadow-2xl transform rotate-2">
             <div class="absolute inset-0 opacity-10 rounded-2xl" style="background-image: radial-gradient(circle at 25% 25%, white 2px, transparent 2px), radial-gradient(circle at 75% 75%, white 2px, transparent 2px); background-size: 40px 40px;"></div>
             <div class="relative flex flex-col items-center gap-4 text-white">
-              <span class="material-symbols-outlined" style="font-size: 140px;">local_drink</span>
-              <span class="text-xs font-bold uppercase tracking-widest opacity-80">Issue 01 · Soft Drinks</span>
+              <span class="material-symbols-outlined" style="font-size: 140px;">water_drop</span>
+              <span class="text-xs font-bold uppercase tracking-widest opacity-80">Issue 02 · Milk After VAT</span>
             </div>
           </div>
           <div class="absolute -bottom-10 -left-10 z-20 bg-white p-6 rounded-xl shadow-xl transform -rotate-2 border border-outline/5">
@@ -46,8 +46,8 @@ const latest = reports[0];
                 <span class="material-symbols-outlined">receipt_long</span>
               </div>
               <div>
-                <p class="text-xs font-bold text-secondary uppercase tracking-widest">Q1 Sample</p>
-                <p class="text-2xl font-black text-primary">599 line items</p>
+                <p class="text-xs font-bold text-secondary uppercase tracking-widest">Issue 02 Sample</p>
+                <p class="text-2xl font-black text-primary">2,963 line items</p>
               </div>
             </div>
           </div>
@@ -59,31 +59,31 @@ const latest = reports[0];
     <section class="py-24 bg-surface">
       <div class="max-w-7xl mx-auto px-8">
         <div class="mb-16">
-          <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Q1 2026 · Headline Findings</p>
-          <h2 class="text-3xl font-bold text-primary mb-2">Three numbers from the Q1 snapshot.</h2>
-          <p class="text-secondary">Drawn from 599 classified soft drinks purchases across 500 verified baskets from 168 Gaborone consumers, February to April 2026.</p>
+          <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">July 2026 · Headline Findings</p>
+          <h2 class="text-3xl font-bold text-primary mb-2">Three numbers from the latest issue.</h2>
+          <p class="text-secondary">Drawn from 2,963 classified milk purchases across 2,699 verified baskets from 310 Gaborone consumers, March to early August 2026.</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
             <div class="text-primary-container mb-4">
               <span class="material-symbols-outlined text-3xl">hub</span>
             </div>
-            <div class="text-4xl font-extrabold text-primary mb-2">70.8%</div>
-            <p class="text-secondary font-medium">of all soft drinks purchases in the Gaborone sample are brands owned by The Coca-Cola Company.</p>
+            <div class="text-4xl font-extrabold text-primary mb-2">14.0%</div>
+            <p class="text-secondary font-medium">exact price step on multiple milk products after VAT took effect — the full tax, passed straight to the shelf.</p>
           </div>
           <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
             <div class="text-primary-container mb-4">
               <span class="material-symbols-outlined text-3xl">shopping_basket</span>
             </div>
-            <div class="text-4xl font-extrabold text-primary mb-2">13.8%</div>
-            <p class="text-secondary font-medium">of all verified baskets in the Q1 panel contained at least one soft drinks line item.</p>
+            <div class="text-4xl font-extrabold text-primary mb-2">0–1%</div>
+            <p class="text-secondary font-medium">price movement on identical zero-rated staples — maize meal, cooking oil, sugar, bread — over the same weeks. It's the tax, not inflation.</p>
           </div>
           <div class="bg-surface-container-lowest p-8 rounded-xl border-l-4 border-primary-fixed shadow-sm">
             <div class="text-primary-container mb-4">
               <span class="material-symbols-outlined text-3xl">payments</span>
             </div>
-            <div class="text-4xl font-extrabold text-primary mb-2">P26.89</div>
-            <p class="text-secondary font-medium">average spend on the category, per basket that contains a soft drink.</p>
+            <div class="text-4xl font-extrabold text-primary mb-2">13.4%</div>
+            <p class="text-secondary font-medium">of all verified baskets contain milk — the VAT change lands on one of every seven Gaborone shops.</p>
           </div>
         </div>
       </div>
@@ -94,8 +94,8 @@ const latest = reports[0];
       <div class="max-w-5xl mx-auto px-8">
         <div class="mb-12 text-center">
           <p class="text-primary-fixed font-bold text-xs uppercase tracking-widest mb-2">Latest Issue</p>
-          <h2 class="text-4xl font-bold text-primary mb-4 tracking-tight font-headline">Q1 2026 · Soft Drinks</h2>
-          <p class="text-secondary text-lg max-w-2xl mx-auto">The first issue in the Beverages series. Category concentration, brand share by units and revenue, price anchoring, and basket attachment.</p>
+          <h2 class="text-4xl font-bold text-primary mb-4 tracking-tight font-headline">July 2026 · Milk After VAT</h2>
+          <p class="text-secondary text-lg max-w-2xl mx-auto">The second issue in the series. VAT pass-through measured on identical products, the zero-rated control group, the repricing lag, and the small-pack downsizing signal.</p>
         </div>
         <div class="max-w-md mx-auto">
           <ReportCard
