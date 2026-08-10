@@ -1,0 +1,433 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const REPORT_SLUG = 'consumer-sentiment-q1-2026';
+const N = 147;
+
+const components = [
+  { label: 'Job Market', score: 5.9, caption: 'How easy it is to find a job right now.' },
+  { label: 'Household Finances', score: 36.6, caption: 'Ability to make ends meet today.' },
+  { label: 'Spending Comfort', score: 33.0, caption: 'Comfort with non-essential purchases.' },
+];
+
+const questions = [
+  {
+    title: 'Q1 · How easy is it to find a job right now?',
+    note: 'Mean 5.9 — the floor of the series',
+    amber: false,
+    rows: [
+      { label: 'Very easy', count: 1 },
+      { label: 'Somewhat easy', count: 0 },
+      { label: 'Neither', count: 5 },
+      { label: 'Somewhat difficult', count: 21 },
+      { label: 'Very difficult', count: 120 },
+    ],
+  },
+  {
+    title: 'Q2 · Household finances — making ends meet',
+    note: 'Mean 36.6',
+    amber: false,
+    rows: [
+      { label: 'Very good', count: 4 },
+      { label: 'Good', count: 7 },
+      { label: 'Fair', count: 63 },
+      { label: 'Poor', count: 52 },
+      { label: 'Very poor', count: 21 },
+    ],
+  },
+  {
+    title: 'Q3 · Comfort with non-essential purchases',
+    note: 'Mean 33.0',
+    amber: false,
+    rows: [
+      { label: 'Very comfortable', count: 6 },
+      { label: 'Somewhat comfortable', count: 17 },
+      { label: 'Neutral', count: 36 },
+      { label: 'Somewhat uncomfortable', count: 47 },
+      { label: 'Very uncomfortable', count: 41 },
+    ],
+  },
+  {
+    title: 'Q4 · Household finances a year from now',
+    note: 'Outlook Index 81.6',
+    amber: true,
+    rows: [
+      { label: 'Better', count: 112 },
+      { label: 'Same', count: 16 },
+      { label: 'Worse', count: 19 },
+    ],
+  },
+];
+
+const foodCuts = [
+  { label: 'Under 25%', n: 15, confidence: 33.9, outlook: 93.3 },
+  { label: '25–50%', n: 60, confidence: 28.5, outlook: 84.2 },
+  { label: '50–75%', n: 34, confidence: 22.3, outlook: 75.0 },
+  { label: 'Over 75%', n: 7, confidence: 23.8, outlook: 71.4 },
+];
+
+const panelStats = [
+  { value: '67%', label: 'households of 3+' },
+  { value: '82%', label: 'with children under 18' },
+  { value: '67%', label: 'income under P5,000' },
+  { value: '65%', label: 'groceries biggest expense' },
+];
+
+const editions = [
+  { date: 'August 2026', label: 'First reading (this page)', current: true },
+  { date: 'October 2026', label: 'Full Q1 report — 3 monthly waves', current: false },
+  { date: 'January 2027', label: 'Q2 report', current: false },
+];
+
+const pct = (count: number) => Math.round((count / N) * 100);
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Report',
+  name: 'BasketIQ Consumer Sentiment Tracker — Q1 2026 First Reading',
+  datePublished: '2026-08-10',
+  publisher: { '@type': 'Organization', name: 'BasketIQ' },
+  about: 'Quarterly tracked consumer sentiment for Botswana, measured monthly from a receipt-panel via web survey. Consumer Confidence Score 25.2/100, Financial Outlook Index 81.6/100 (n=147, August 2026).',
+};
+---
+
+<Base
+  title="Consumer Sentiment Tracker | BasketIQ"
+  description="Quarterly consumer sentiment for Botswana, measured monthly from BasketIQ's receipt panel. Q1 2026 first reading: Confidence 25.2, Outlook 81.6 (n=147)."
+  jsonLd={jsonLd}
+>
+  <main class="pt-20">
+    <!-- Hero -->
+    <section class="bg-surface-container-low px-8 pt-20 pb-16">
+      <div class="max-w-4xl mx-auto text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-primary-fixed text-on-primary-fixed text-xs font-bold tracking-widest rounded-full mb-8 uppercase">
+          Consumer Sentiment Tracker · Q1 2026
+        </div>
+        <h1 class="text-4xl md:text-6xl font-extrabold text-primary tracking-tight leading-[1.08] mb-6 font-headline">
+          Botswana consumers say times are hard — and expect next year to be better
+        </h1>
+        <p class="text-lg md:text-xl text-secondary leading-relaxed max-w-2xl mx-auto mb-10">
+          Measured monthly from BasketIQ's receipt panel · {N} responses · August 2026 first reading
+        </p>
+        <div class="flex flex-wrap justify-center gap-4">
+          <a href="#subscribe" class="bg-primary text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-primary-container shadow-xl shadow-primary/10 transition-all inline-block">
+            Get the Q1 report
+          </a>
+          <a href="#methodology" class="bg-white text-primary px-8 py-4 rounded-full font-bold text-lg hover:bg-surface-container-high border border-outline/10 transition-all inline-block">
+            How we measure
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Index tiles -->
+    <section class="max-w-7xl mx-auto px-8 py-16">
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-8 shadow-sm">
+          <div class="flex justify-between items-start mb-10">
+            <h2 class="text-2xl font-bold text-primary font-headline max-w-[240px]">Consumer Confidence Score</h2>
+            <span class="px-3 py-1 bg-surface-container text-secondary text-xs font-bold tracking-widest rounded-full uppercase">Baseline</span>
+          </div>
+          <div class="text-6xl md:text-7xl font-extrabold text-primary font-headline leading-none mb-3">
+            25.2<span class="text-3xl text-secondary font-bold">/100</span>
+          </div>
+          <p class="text-sm text-secondary">Mean of the Job Market, Household Finances, and Spending Comfort scores.</p>
+        </div>
+        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-8 shadow-sm">
+          <div class="flex justify-between items-start mb-10">
+            <h2 class="text-2xl font-bold text-primary font-headline max-w-[240px]">Financial Outlook Index</h2>
+            <span class="px-3 py-1 bg-surface-container text-secondary text-xs font-bold tracking-widest rounded-full uppercase">Baseline</span>
+          </div>
+          <div class="text-6xl md:text-7xl font-extrabold text-primary font-headline leading-none mb-3">
+            81.6<span class="text-3xl text-secondary font-bold">/100</span>
+          </div>
+          <p class="text-sm text-secondary">Expected household finances 12 months from now (better = 100, same = 50, worse = 0).</p>
+        </div>
+      </div>
+      <div class="mt-6 bg-white border-l-4 border-primary p-6 pl-8 rounded-r-xl">
+        <p class="text-lg text-primary leading-relaxed">
+          <span class="font-bold">The 56-point gap is the story.</span>
+          82% say finding a job is very difficult and 60% are uncomfortable spending on
+          non-essentials — yet 76% expect their household to be better off a year from now.
+          Panelists are pessimistic about the economy today and strikingly optimistic about
+          their own trajectory.
+        </p>
+      </div>
+    </section>
+
+    <!-- Component scores -->
+    <section class="max-w-7xl mx-auto px-8 pb-16">
+      <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-6">The three components</p>
+      <div class="grid md:grid-cols-3 gap-6">
+        {components.map((c) => (
+          <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6">
+            <div class="flex justify-between items-baseline mb-4">
+              <h3 class="text-lg font-bold text-primary font-headline">{c.label}</h3>
+              <span class="text-2xl font-extrabold text-primary font-headline">{c.score.toFixed(1)}</span>
+            </div>
+            <div class="w-full bg-surface-container h-1.5 rounded-full mb-4">
+              <div class="bg-primary h-1.5 rounded-full" style={`width: ${c.score}%`}></div>
+            </div>
+            <p class="text-sm text-secondary">{c.caption}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Distribution charts -->
+    <section class="max-w-7xl mx-auto px-8 pb-16">
+      <h2 class="text-3xl font-extrabold text-primary font-headline tracking-tight mb-2">How each question scored</h2>
+      <p class="text-secondary mb-8">Each answer maps to a frozen 0–100 scale. n = {N} per question.</p>
+      <div class="grid md:grid-cols-2 gap-6">
+        {questions.map((q) => (
+          <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-primary font-headline mb-1">{q.title}</h3>
+            <p class="text-sm text-secondary mb-6">{q.note}</p>
+            <div class="space-y-3">
+              {q.rows.map((row) => (
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <div class="w-full sm:w-40 text-left sm:text-right text-secondary leading-tight shrink-0">{row.label}</div>
+                  <div class="flex-1 bg-surface-container h-4 rounded min-w-[120px]">
+                    <div
+                      class:list={['h-4 rounded min-w-[2px]', q.amber ? 'bg-[#FFB800]' : 'bg-primary']}
+                      style={`width: ${Math.max(pct(row.count), row.count > 0 ? 1 : 0)}%`}
+                    ></div>
+                  </div>
+                  <div class="w-20 text-primary font-medium tabular-nums shrink-0">{row.count} · {pct(row.count)}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Insight: food-budget gradient -->
+    <section class="max-w-7xl mx-auto px-8 pb-16">
+      <h2 class="text-3xl font-extrabold text-primary font-headline tracking-tight mb-2">
+        Food-budget pressure predicts sentiment better than income
+      </h2>
+      <p class="text-secondary max-w-3xl mb-8">
+        Among the 116 respondents who also completed the Household Profile survey, the share of
+        the budget going to groceries is the cleanest gradient in the data: the more of the
+        budget food takes, the worse today feels <em>and</em> the dimmer next year looks.
+        Income shows the same direction, but flatter and noisier.
+      </p>
+      <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-8">
+        <div class="flex justify-end gap-6 mb-8 text-sm text-secondary">
+          <span class="inline-flex items-center gap-2"><span class="w-3 h-3 bg-primary rounded-sm inline-block"></span>Confidence</span>
+          <span class="inline-flex items-center gap-2"><span class="w-3 h-3 bg-[#FFB800] rounded-sm inline-block"></span>Outlook</span>
+        </div>
+        <div class="space-y-6">
+          {foodCuts.map((cut) => (
+            <div>
+              <p class="text-sm font-bold text-primary mb-2">
+                {cut.label} of spend on groceries
+                <span class="font-normal text-secondary"> · n={cut.n}{cut.n < 10 ? ' (directional)' : ''}</span>
+              </p>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-3 text-sm">
+                  <div class="flex-1 bg-surface-container h-3.5 rounded">
+                    <div class="bg-primary h-3.5 rounded" style={`width: ${cut.confidence}%`}></div>
+                  </div>
+                  <div class="w-12 text-primary font-medium tabular-nums shrink-0">{cut.confidence.toFixed(1)}</div>
+                </div>
+                <div class="flex items-center gap-3 text-sm">
+                  <div class="flex-1 bg-surface-container h-3.5 rounded">
+                    <div class="bg-[#FFB800] h-3.5 rounded" style={`width: ${cut.outlook}%`}></div>
+                  </div>
+                  <div class="w-12 text-primary font-medium tabular-nums shrink-0">{cut.outlook.toFixed(1)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Who answered -->
+    <section class="bg-surface-container py-10">
+      <div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
+        <h2 class="text-xl font-bold text-primary font-headline whitespace-nowrap">Who answered</h2>
+        <div class="flex flex-wrap gap-x-10 gap-y-3 text-secondary">
+          {panelStats.map((s) => (
+            <p><span class="font-extrabold text-primary">{s.value}</span> {s.label}</p>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Edition timeline -->
+    <section class="max-w-7xl mx-auto px-8 py-16">
+      <p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-8">Edition schedule</p>
+      <div class="relative">
+        <div class="hidden md:block absolute top-1/2 left-0 w-full h-px bg-outline-variant -translate-y-1/2"></div>
+        <div class="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          {editions.map((e) => (
+            <div
+              class:list={[
+                'px-6 py-3 rounded-full text-sm text-center',
+                e.current
+                  ? 'bg-primary-fixed text-on-primary-fixed font-bold'
+                  : 'bg-surface-container-lowest border border-outline-variant text-secondary',
+              ]}
+            >
+              <span class="font-bold">{e.date}</span> · {e.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Methodology -->
+    <section id="methodology" class="max-w-7xl mx-auto px-8 pb-20">
+      <h2 class="text-3xl font-extrabold text-primary font-headline tracking-tight mb-8">How we measure</h2>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6">
+          <h3 class="text-lg font-bold text-primary font-headline mb-3">How scores are computed</h3>
+          <p class="text-sm text-secondary leading-relaxed">
+            Each answer to the three current-conditions questions maps to a frozen 0–100 scale
+            (best answer = 100, worst = 0). The Consumer Confidence Score is the mean of the three
+            per-question means. The Financial Outlook Index scores better = 100, same = 50, worse = 0.
+          </p>
+        </div>
+        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6">
+          <h3 class="text-lg font-bold text-primary font-headline mb-3">Who is on the panel</h3>
+          <p class="text-sm text-secondary leading-relaxed">
+            Consumers on BasketIQ's receipt panel — real Botswana households that upload their
+            supermarket till slips via WhatsApp. The survey runs on the web, delivered through a
+            personal WhatsApp link. This first reading: {N} completed responses, a partial panel
+            skewed toward engaged members; September fields the full panel from day one.
+          </p>
+        </div>
+        <div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6">
+          <h3 class="text-lg font-bold text-primary font-headline mb-3">Fielding window</h3>
+          <p class="text-sm text-secondary leading-relaxed">
+            The 1st to the 10th of every month, with question wording and answer scales frozen for
+            the life of the series — that consistency is what makes month-over-month movement
+            meaningful. Quarterly editions roll up three monthly waves.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="subscribe" class="bg-primary py-20 px-8">
+      <div class="max-w-2xl mx-auto text-center">
+        <h2 class="text-3xl md:text-5xl font-extrabold text-white font-headline tracking-tight mb-4">
+          Get every edition the day it publishes
+        </h2>
+        <p class="text-white/70 text-lg mb-10">
+          We'll email you the Q1 first reading now, and notify you when the next edition drops.
+        </p>
+        <form id="lead-form" class="text-left bg-white rounded-xl p-8 space-y-5">
+          <div style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+            <label for="website">Website (leave empty)</label>
+            <input type="text" name="website" id="website" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="grid md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Full Name</label>
+              <input type="text" name="name" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your full name" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Work Email</label>
+              <input type="email" name="email" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="work@company.com" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Company</label>
+              <input type="text" name="company" required class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your company" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2">Role</label>
+              <input type="text" name="role" class="w-full px-4 py-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary-fixed text-sm" placeholder="Your role (optional)" />
+            </div>
+          </div>
+          <button id="lead-submit" type="submit" class="w-full bg-primary text-white px-6 py-4 rounded-full font-bold text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-lg">mark_email_read</span>
+            Send me the Q1 report
+          </button>
+          <p class="text-xs text-outline text-center leading-relaxed">
+            We'll email you this report and notify you when the next edition drops. No spam.
+          </p>
+        </form>
+        <div id="download-success" class="text-left bg-white rounded-xl p-8" style="display:none">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="material-symbols-outlined text-on-primary-container" style="font-size:32px">check_circle</span>
+            <h3 class="text-xl font-bold text-primary font-headline">Check your inbox</h3>
+          </div>
+          <p class="text-secondary mb-4 leading-relaxed">
+            We've sent the Q1 first reading to <strong id="success-email"></strong>.
+            It should arrive within a minute — if not, check your spam folder or write to
+            <a href="mailto:hello@basketiq.co.bw" class="underline">hello@basketiq.co.bw</a>.
+          </p>
+          <p class="text-outline text-sm">
+            You're on the list: we'll email you when the October edition (the full Q1 report) publishes.
+          </p>
+        </div>
+        <div id="download-error" class="mt-4" style="display:none">
+          <p class="text-red-300 text-sm">Something went wrong. Please try again, or email us at <a href="mailto:hello@basketiq.co.bw" class="underline text-white">hello@basketiq.co.bw</a>.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<script define:vars={{ reportSlug: REPORT_SLUG }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('lead-form');
+    if (!form) return;
+    const button = document.getElementById('lead-submit');
+    const successBlock = document.getElementById('download-success');
+    const errorBlock = document.getElementById('download-error');
+    const successEmail = document.getElementById('success-email');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (errorBlock) errorBlock.style.display = 'none';
+
+      const data = new FormData(form);
+      const payload = {
+        name: (data.get('name') || '').toString().trim(),
+        email: (data.get('email') || '').toString().trim(),
+        company: (data.get('company') || '').toString().trim(),
+        role: (data.get('role') || '').toString().trim() || null,
+        report_slug: reportSlug,
+        website: (data.get('website') || '').toString(),
+      };
+
+      const originalLabel = button ? button.innerHTML : '';
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = 'Sending...';
+      }
+
+      try {
+        const response = await fetch('https://api.basketiq.co.bw/v1/public/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          if (successEmail) successEmail.textContent = payload.email;
+          form.style.display = 'none';
+          if (successBlock) successBlock.style.display = 'block';
+        } else {
+          console.error('Lead capture failed with status', response.status);
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = originalLabel;
+          }
+          if (errorBlock) errorBlock.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Lead capture fetch error', err);
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = originalLabel;
+        }
+        if (errorBlock) errorBlock.style.display = 'block';
+      }
+    });
+  });
+</script>
