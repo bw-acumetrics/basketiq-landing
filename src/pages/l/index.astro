@@ -117,8 +117,11 @@ const WHATSAPP_URL = 'https://wa.me/26778510584?text=Hi';
         detail.className = 'text-secondary text-sm mt-1';
 
         if (item.outcome === 'priced' && item.median !== null) {
-          name.textContent = `✅ ${item.display_name} — P${item.median}`;
-          let text = `P${item.p25}–P${item.p75}, ${item.n} obs, latest ${day(item.latest)}`;
+          // A per-kg item's median is a BWP/kg rate, not a pack price; the API
+          // already excludes it from estimated_total and priced_count.
+          const unit = item.is_per_kg ? '/kg' : '';
+          name.textContent = `✅ ${item.display_name} — P${item.median}${unit}`;
+          let text = `P${item.p25}–P${item.p75}${unit}, ${item.n} obs, latest ${day(item.latest)}`;
           if (item.is_fallback) text += ' (older data)';
           detail.textContent = text;
         } else if (item.outcome === 'not_covered') {
