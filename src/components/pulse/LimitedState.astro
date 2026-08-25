@@ -1,0 +1,72 @@
+---
+// Limited-data state — progress bar + fallback block (hidden when null) + browse link.
+import { formatPula } from '../../lib/pulse';
+import NotifyMeForm from './NotifyMeForm.astro';
+
+interface Props {
+  slug: string;
+  displayLabel: string;
+  receiptCount: number;
+  receiptsRequired: number;
+  fallback: {
+    slug: string;
+    display_label: string;
+    median_price: number;
+    receipt_count: number;
+  } | null;
+}
+
+const { slug, displayLabel, receiptCount, receiptsRequired, fallback } = Astro.props;
+const pct = Math.round((receiptCount / receiptsRequired) * 100);
+---
+
+<main class="flex-1 w-full max-w-md mx-auto px-4 py-8 flex flex-col gap-8">
+  <!-- Category Header -->
+  <section class="flex flex-col gap-1 px-2">
+    <h1 class="font-headline text-3xl font-bold text-on-surface">{displayLabel}</h1>
+    <p class="text-sm text-on-surface-variant flex items-center gap-1">
+      <span class="material-symbols-outlined text-base">location_on</span>
+      Botswana · formal grocery retail
+    </p>
+  </section>
+
+  <!-- Honest Status Card -->
+  <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+    <div class="flex flex-col gap-1">
+      <h2 class="font-headline text-xl font-semibold text-on-surface">We&rsquo;re still building this picture.</h2>
+      <p class="text-sm text-on-surface-variant">We have {receiptCount} verified receipts for this category — we publish a snapshot at {receiptsRequired}.</p>
+    </div>
+    <div class="flex flex-col gap-1">
+      <div class="w-full bg-surface-variant h-2 rounded overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100">
+        <div class="bg-primary h-full transition-all duration-500 ease-out" style={`width: ${pct}%`}></div>
+      </div>
+      <span class="text-xs text-outline">{receiptCount} of {receiptsRequired} receipts</span>
+    </div>
+  </article>
+
+  <!-- Fallback block -->
+  {fallback !== null && (
+    <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+      <h3 class="text-xs text-on-surface-variant uppercase tracking-wider">Nearby category: {fallback.display_label}</h3>
+      <div>
+        <span class="font-headline text-2xl font-bold text-on-surface">{formatPula(fallback.median_price)} typical</span>
+      </div>
+      <p class="text-sm text-outline">Based on {fallback.receipt_count.toLocaleString()} till-verified receipts</p>
+      <a href={`/pulse/${fallback.slug}`} class="text-sm font-semibold text-primary inline-flex items-center gap-1 group">
+        View full snapshot
+        <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-1">arrow_forward</span>
+      </a>
+    </article>
+  )}
+
+  <!-- Notify Me -->
+  <NotifyMeForm slug={slug} />
+
+  <!-- Browse Link -->
+  <div class="flex justify-center pb-8">
+    <a href="/pulse" class="text-sm font-semibold text-primary inline-flex items-center gap-1 group hover:opacity-80 transition-opacity">
+      Browse categories with live data
+      <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-1">arrow_forward</span>
+    </a>
+  </div>
+</main>

@@ -1,0 +1,148 @@
+---
+// One contact form/dialog driven by data-insight-type.
+// Types: history_unlock (+ desired_lookback_days), bought_together, co_basket_brands,
+// competing_brands, brand_watch, general.
+// 202 → frontend-owned confirmation copy; non-2xx → retryable error.
+---
+
+<div id="contact-overlay" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-on-surface/40 backdrop-blur-sm" role="dialog" aria-modal="true">
+  <div class="bg-surface-container-lowest w-full max-w-md mx-0 sm:mx-4 sm:rounded-2xl rounded-t-2xl p-6 pb-8 shadow-xl max-h-[90dvh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="font-headline text-lg font-bold text-on-surface" id="contact-title">Get full insight</h2>
+      <button type="button" id="contact-close" class="material-symbols-outlined text-on-surface-variant hover:text-on-surface transition-colors">close</button>
+    </div>
+
+    <form id="contact-form" class="flex flex-col gap-4">
+      <input type="hidden" id="contact-insight-type" name="insight_type" />
+      <input type="hidden" id="contact-slug" name="category_slug" />
+      <input type="text" name="website" id="contact-website" class="hidden" tabindex="-1" autocomplete="off" />
+
+      <div id="contact-lookback-row" class="hidden">
+        <label for="contact-lookback" class="block text-xs text-on-surface-variant font-medium mb-1">How many months of history?</label>
+        <select id="contact-lookback" name="desired_lookback_days" class="w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="90">3 months</option>
+          <option value="180" selected>6 months</option>
+          <option value="365">12 months</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="contact-detail" class="block text-xs text-on-surface-variant font-medium mb-1">WhatsApp number or email</label>
+        <input
+          type="text"
+          id="contact-detail"
+          name="contact_detail"
+          required
+          maxlength="200"
+          class="w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          placeholder="+267 7X XXX XXXX or email"
+        />
+      </div>
+
+      <div id="contact-error" class="hidden text-sm text-error bg-error-container/50 rounded-lg px-4 py-2">
+        Something went wrong. Please try again.
+      </div>
+      <div id="contact-success" class="hidden text-sm text-primary border border-primary-container/30 bg-primary-fixed/10 rounded-lg px-4 py-3 text-center">
+        We'll be in touch within one business day.
+      </div>
+
+      <button
+        type="submit"
+        id="contact-submit"
+        class="w-full bg-primary-container text-white font-headline font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+      >
+        Send
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function mpGetHash() {
+    try {
+      var h = sessionStorage.getItem('mp_session_hash');
+      if (h) return h;
+      h = crypto.randomUUID();
+      sessionStorage.setItem('mp_session_hash', h);
+      return h;
+    } catch(e) { return crypto.randomUUID(); }
+  }
+
+  var overlay = document.getElementById('contact-overlay');
+  var form = document.getElementById('contact-form');
+  var title = document.getElementById('contact-title');
+  var detailInput = document.getElementById('contact-detail');
+  var lookbackRow = document.getElementById('contact-lookback-row');
+  var errorEl = document.getElementById('contact-error');
+  var successEl = document.getElementById('contact-success');
+  var submitBtn = document.getElementById('contact-submit');
+
+  function openContact(insightType, slug, lookbackDays) {
+    document.getElementById('contact-insight-type').value = insightType;
+    document.getElementById('contact-slug').value = slug;
+    lookbackRow.classList.toggle('hidden', insightType !== 'history_unlock');
+    title.textContent = insightType === 'history_unlock' ? 'Unlock price history' : 'Get full insight';
+    detailInput.value = '';
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    form.classList.remove('hidden');
+    submitBtn.disabled = false;
+    overlay.classList.remove('hidden');
+  }
+
+  function closeContact() { overlay.classList.add('hidden'); }
+
+  document.getElementById('contact-close').addEventListener('click', closeContact);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeContact(); });
+
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('.lock-row');
+    if (!target) return;
+    var insightType = target.dataset.insightType || 'general';
+    var slug = target.dataset.slug || '';
+    var lookback = target.dataset.lookbackDays;
+    openContact(insightType, slug, lookback);
+  });
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    var insightType = document.getElementById('contact-insight-type').value;
+    var slug = document.getElementById('contact-slug').value;
+    var contactDetail = detailInput.value;
+    var body = {
+      insight_type: insightType,
+      contact_detail: contactDetail.trim().substring(0, 200),
+      category_slug: slug,
+      session_hash: mpGetHash(),
+      website: ''
+    };
+    if (insightType === 'history_unlock') {
+      body.desired_lookback_days = parseInt(document.getElementById('contact-lookback').value, 10);
+    }
+    try {
+      var res = await fetch('https://api.basketiq.co.bw/v1/public/pulse/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (res.ok && res.status === 202) {
+        successEl.classList.remove('hidden');
+        form.classList.add('hidden');
+        if (window.umami) window.umami.track('contact_tap', { type: insightType });
+      } else {
+        errorEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send';
+      }
+    } catch(e) {
+      errorEl.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send';
+    }
+  });
+</script>

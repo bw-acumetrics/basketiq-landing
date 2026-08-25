@@ -1,0 +1,138 @@
+---
+// Price Position Check input — rendered only on published snapshots.
+// Posts to POST /categories/{slug}/price-check and renders the verdict in-page.
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<section id="price-check-card" class="bg-white border border-outline-variant rounded-xl p-6">
+  <h3 class="font-headline text-on-surface text-xl font-bold mb-4">How does YOUR price compare?</h3>
+  <div class="space-y-4">
+    <div>
+      <label for="price-input" class="block text-xs text-on-surface-variant font-medium mb-1">Your selling price (P)</label>
+      <input
+        id="price-input"
+        type="number"
+        step="0.01"
+        min="0"
+        class="w-full border border-outline-variant rounded-lg px-4 py-3 text-on-surface font-headline font-semibold focus:ring-1 focus:ring-primary-container focus:border-primary-container transition-colors"
+        placeholder="0.00"
+      />
+    </div>
+    <button
+      id="price-check-btn"
+      type="button"
+      class="w-full bg-primary text-primary-fixed font-headline font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
+    >
+      Check my position
+    </button>
+    <p id="price-check-error" class="hidden text-center text-sm text-error"></p>
+    <p class="text-center text-xs text-on-surface-variant">Free · no sign-up · takes 10 seconds</p>
+  </div>
+</section>
+
+<script define:vars={{ slug: JSON.stringify(slug) }}>
+  function formatPula(v, d) { d = d || 2; return 'P ' + v.toFixed(d); }
+  function formatPctChange(fraction) {
+    if (fraction === null) return 'no trend';
+    var pct = fraction * 100;
+    var sign = pct >= 0 ? '+' : '\u2212';
+    return sign + Math.abs(pct).toFixed(1) + '%';
+  }
+  function mpGetHash() {
+    try {
+      var h = sessionStorage.getItem('mp_session_hash');
+      if (h) return h;
+      h = crypto.randomUUID();
+      sessionStorage.setItem('mp_session_hash', h);
+      return h;
+    } catch(e) { return crypto.randomUUID(); }
+  }
+
+  var checkBtn = document.getElementById('price-check-btn');
+  var input = document.getElementById('price-input');
+  var errorEl = document.getElementById('price-check-error');
+
+  function renderVerdict(result, enteredPrice, slug) {
+    var snapshotContent = document.getElementById('snapshot-content');
+    var priceCheckCard = document.getElementById('price-check-card');
+    var verdictContainer = document.getElementById('verdict-container');
+    if (snapshotContent) snapshotContent.classList.add('hidden');
+    if (priceCheckCard) priceCheckCard.classList.add('hidden');
+    if (!verdictContainer) return;
+    verdictContainer.classList.remove('hidden');
+
+    var direction = result.direction === 'above' ? 'ABOVE' : 'BELOW';
+    var pct = formatPctChange(result.delta_fraction);
+    var barePct = pct.replace(/^[\+\u2212]/, '');
+    var verdictTitle = document.getElementById('verdict-title');
+    if (verdictTitle) verdictTitle.innerHTML = 'Your price is <span class="text-primary-container">' + barePct + ' ' + direction + '</span> market typical';
+
+    var posPctEl = document.getElementById('verdict-position-pct');
+    if (posPctEl) posPctEl.textContent = Math.round(result.position_pct) + '%';
+
+    var p10Text = document.getElementById('verdict-p10');
+    var p90Text = document.getElementById('verdict-p90');
+    var mdnText = document.getElementById('verdict-median-price');
+    var p10 = parseFloat((p10Text && p10Text.textContent || '').replace(/[^0-9.]/g, '') || '0');
+    var p90 = parseFloat((p90Text && p90Text.textContent || '').replace(/[^0-9.]/g, '') || '1');
+    var mdn = result.median_price;
+    var range = p90 - p10 || 1;
+    var userLeft = Math.max(0, Math.min(100, ((enteredPrice - p10) / range) * 100));
+    var mdnLeft = ((mdn - p10) / range) * 100;
+
+    var userMarker = document.getElementById('verdict-user-marker');
+    if (userMarker) userMarker.style.left = userLeft + '%';
+    var userLabel = document.getElementById('verdict-you-price');
+    if (userLabel) userLabel.textContent = formatPula(enteredPrice);
+
+    var mdnMarker = document.getElementById('verdict-median-marker');
+    if (mdnMarker) mdnMarker.style.left = mdnLeft + '%';
+    if (mdnText) mdnText.textContent = formatPula(result.median_price);
+
+    var rcEl = document.querySelector('[data-pulse-field="receipt_count"]');
+    var receiptCount = rcEl ? rcEl.textContent : '0';
+    var receiptNote = document.getElementById('verdict-receipts');
+    if (receiptNote) receiptNote.textContent = 'Based on ' + receiptCount + ' till-verified receipts';
+
+    var shareBtn = document.getElementById('share-btn');
+    if (shareBtn) {
+      shareBtn.dataset.verdictText = 'Your price is ' + barePct + ' ' + direction + ' market typical';
+      shareBtn.dataset.receiptCount = receiptCount;
+      shareBtn.dataset.categoryUrl = window.location.origin + '/pulse/' + slug;
+    }
+
+    if (window.umami) window.umami.track('price_check_completed', { slug: slug });
+  }
+
+  checkBtn.addEventListener('click', async function() {
+    var enteredPrice = parseFloat(input.value);
+    if (isNaN(enteredPrice) || enteredPrice <= 0) {
+      errorEl.textContent = 'Please enter a valid price.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    errorEl.classList.add('hidden');
+    checkBtn.disabled = true;
+    checkBtn.textContent = 'Checking…';
+    try {
+      var res = await fetch('https://api.basketiq.co.bw/v1/public/pulse/categories/' + slug + '/price-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entered_price: enteredPrice, session_hash: mpGetHash(), website: '' })
+      });
+      if (!res.ok) throw new Error('Price check failed: ' + res.status);
+      var result = await res.json();
+      renderVerdict(result, enteredPrice, slug);
+    } catch(err) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      checkBtn.disabled = false;
+      checkBtn.textContent = 'Check my position';
+    }
+  });
+</script>

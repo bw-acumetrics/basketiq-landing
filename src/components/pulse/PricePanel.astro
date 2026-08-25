@@ -1,0 +1,28 @@
+---
+// Price panel — headline price (median), P10–P90 range bar, receipt count.
+import { formatPula, type CategorySnapshot } from '../../lib/pulse';
+
+interface Props {
+  snapshot: CategorySnapshot;
+}
+
+const { snapshot: s } = Astro.props;
+const p10Pct = ((s.median_price - s.p10_price) / (s.p90_price - s.p10_price)) * 100;
+---
+
+<section class="bg-white border border-outline-variant rounded-xl p-5">
+  <p class="text-sm text-on-surface-variant font-medium mb-2">Typical price shoppers paid</p>
+  <div class="font-headline text-on-surface text-5xl font-extrabold tracking-tighter mb-4" data-pulse-field="median_price">{formatPula(s.median_price)}</div>
+  <!-- P10–P90 range bar -->
+  <div class="relative h-2 bg-surface rounded-full border border-outline-variant/50 mb-3">
+    <div class="absolute h-full bg-outline-variant/30 rounded-full" style="left: {((s.p10_price - s.p10_price) / (s.p90_price - s.p10_price)) * 100}%; width: {((s.p90_price - s.p10_price) / (s.p90_price - s.p10_price)) * 100}%"></div>
+    <div class="absolute h-4 w-1.5 bg-primary-container rounded-sm -translate-y-1/2" style="left: {p10Pct}%"></div>
+  </div>
+  <div class="flex justify-between text-xs text-on-surface-variant mb-3">
+    <span data-pulse-field="p10_price">{formatPula(s.p10_price)}</span>
+    <span data-pulse-field="p90_price">{formatPula(s.p90_price)}</span>
+  </div>
+  <p class="text-xs text-on-surface-variant border-t border-outline-variant/30 pt-3">
+    Based on <span data-pulse-field="receipt_count">{s.receipt_count.toLocaleString()}</span> till-verified receipts
+  </p>
+</section>

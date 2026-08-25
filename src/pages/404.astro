@@ -1,0 +1,230 @@
+---
+// 404 page — client-side resolver for /pulse/<slug> paths with no pre-generated page.
+// Calls GET /categories/{slug} and renders full snapshot, limited state, or not-found.
+// Non-/pulse/ paths get the plain site not-found content.
+// Served with HTTP 404; acceptable — audience arrives by shared link.
+import Pulse from '../layouts/Pulse.astro';
+import PulseTopBar from '../components/pulse/PulseTopBar.astro';
+import PulseFooter from '../components/pulse/PulseFooter.astro';
+import ContactSheet from '../components/pulse/ContactSheet.astro';
+---
+
+<Pulse title="Not Found — BasketIQ">
+  <PulseTopBar />
+
+  <!-- Fallback content: plain not-found. Client script replaces for /pulse/ paths. -->
+  <main id="not-found-main" class="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+    <span class="material-symbols-outlined text-5xl text-outline-variant mb-4">search_off</span>
+    <h1 class="font-headline text-2xl font-bold text-on-surface mb-2">Page not found</h1>
+    <p class="text-sm text-on-surface-variant mb-6">The page you&rsquo;re looking for doesn&rsquo;t exist.</p>
+    <a href="/" class="text-sm font-semibold text-primary hover:underline">Back to BasketIQ</a>
+  </main>
+
+  <PulseFooter />
+  <ContactSheet />
+</Pulse>
+
+
+<script>
+  (function() {
+    function formatPula(v, d) { d = d || 2; return 'P ' + v.toFixed(d); }
+    function formatPctChange(fraction) {
+      if (fraction === null) return 'no trend';
+      var pct = fraction * 100;
+      var sign = pct >= 0 ? '+' : '\u2212';
+      return sign + Math.abs(pct).toFixed(1) + '%';
+    }
+    function mpGetHash() {
+      try {
+        var h = sessionStorage.getItem('mp_session_hash');
+        if (h) return h;
+        h = crypto.randomUUID();
+        sessionStorage.setItem('mp_session_hash', h);
+        return h;
+      } catch(e) { return crypto.randomUUID(); }
+    }
+
+    function buildSparklineHtml(trend) {
+      var values = trend.map(function(p) { return p.value; }).filter(function(v) { return v !== null; });
+      var max = values.length > 0 ? Math.max.apply(null, values) : 1;
+      var min = values.length > 0 ? Math.min.apply(null, values) : 0;
+      var range = max - min || 1;
+      var w = trend.length - 1 || 1;
+      var segments = [];
+      var current = [];
+      for (var i = 0; i < trend.length; i++) {
+        if (trend[i].value !== null) {
+          var x = (4 + (i / w) * 192).toFixed(1);
+          var y = (4 + (1 - (trend[i].value - min) / range) * 40).toFixed(1);
+          current.push((i === 0 || current.length === 0 ? 'M' : 'L') + x + ' ' + y);
+        } else {
+          if (current.length > 0) { segments.push(current.join(' ')); current = []; }
+        }
+      }
+      if (current.length > 0) segments.push(current.join(' '));
+      return '<svg viewBox="0 0 200 48" class="w-full h-12" preserveAspectRatio="none"><path d="' + segments.join(' ') + '" fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+
+    function buildStoreBarsHtml(rollup) {
+      var labels = { supermarkets: 'Supermarkets', wholesalers: 'Wholesalers', convenience_other: 'Convenience & other' };
+      var ops = ['', 'opacity-80', 'opacity-60'];
+      return '<section class="bg-white border border-outline-variant rounded-xl p-5"><h3 class="font-headline text-on-surface text-lg font-bold mb-4">Where it\'s bought</h3><div class="space-y-3">' +
+        rollup.map(function(r, i) {
+          return '<div><div class="flex justify-between text-sm mb-1"><span class="text-on-surface font-medium">' + (labels[r.label] || r.label) + '</span><span class="font-bold text-on-surface">' + Math.round(r.pct) + '%</span></div><div class="h-2 w-full bg-surface rounded-sm border border-outline-variant/20"><div class="h-full bg-primary-container rounded-sm ' + (ops[i] || '') + '" style="width: ' + r.pct + '%"></div></div></div>';
+        }).join('') + '</div></section>';
+    }
+
+    function buildTeaserHtml(teaser, slug, rc) {
+      var hasFree = teaser.avg_trip_spend !== null || teaser.trip_basket_count !== null;
+      var lockedRows = [];
+      if (teaser.bought_together_count !== null) lockedRows.push({ text: 'Our AI identified <span class="font-headline font-bold text-primary-container">' + teaser.bought_together_count + '</span> products usually bought together with this item', insightType: 'bought_together' });
+      if (teaser.co_basket_brand_count !== null) lockedRows.push({ text: 'Our AI identified <span class="font-headline font-bold text-primary-container">' + teaser.co_basket_brand_count + '</span> brands shoppers also buy in the same basket', insightType: 'co_basket_brands' });
+      if (teaser.competing_brand_count !== null) lockedRows.push({ text: 'Our AI identified <span class="font-headline font-bold text-primary-container">' + teaser.competing_brand_count + '</span> competing brands in this category', insightType: 'competing_brands' });
+      if (!hasFree && lockedRows.length === 0) return '';
+
+      var freeHtml = '';
+      if (hasFree) {
+        var parts = 'Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container">' + (teaser.avg_trip_spend !== null ? formatPula(teaser.avg_trip_spend) : '') + '</span> on average per trip';
+        if (teaser.trip_basket_count !== null) parts += ', in baskets of <span class="font-headline font-bold text-primary-container">' + teaser.trip_basket_count + '</span> items';
+        freeHtml = '<div class="flex items-center justify-between py-2"><p class="text-sm text-on-surface flex-1">' + parts + '</p><span class="bg-primary-fixed/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded ml-2 whitespace-nowrap">FREE INSIGHT</span></div>';
+      }
+      var lockedHtml = '';
+      if (lockedRows.length > 0) {
+        lockedHtml = (hasFree ? '<div class="border-t border-outline-variant/30"></div>' : '') + '<p class="text-xs text-on-surface-variant pt-1">Our AI found more insights like this:</p>' +
+          lockedRows.map(function(r) { return '<button type="button" class="lock-row flex items-center justify-between py-2 border-t border-outline-variant/30 w-full text-left hover:bg-surface-container-low/50 transition-colors px-1 rounded" data-insight-type="' + r.insightType + '" data-slug="' + slug + '"><p class="text-sm text-on-surface flex-1">' + r.text + '</p><span class="material-symbols-outlined text-on-surface-variant text-lg ml-2">lock</span></button>'; }).join('');
+      }
+      return '<section class="bg-white border border-outline-variant border-l-[3px] border-l-primary-container rounded-xl p-5 space-y-3"><div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary-container text-sm">auto_awesome</span><span class="text-xs font-bold uppercase tracking-wider text-primary-container">BASKETIQ AI</span></div><span class="bg-primary-fixed/20 text-primary text-xs px-2 py-0.5 rounded-full">from ' + rc.toLocaleString() + ' baskets</span></div><div class="space-y-0">' + freeHtml + lockedHtml + '</div><div class="space-y-2 pt-1"><button type="button" class="lock-row w-full bg-primary-container text-white font-headline font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity" data-insight-type="general" data-slug="' + slug + '">Contact us — get the full breakdown</button><p class="text-center text-xs text-on-surface-variant">Free consultation · WhatsApp or email</p></div></section>';
+    }
+
+    var path = window.location.pathname;
+
+    if (!path.startsWith('/pulse/')) {
+      // Non-/pulse/ path — show the plain 404 already rendered.
+      return;
+    }
+
+    var slug = path.replace(/^\/pulse\//, '').replace(/\/$/, '');
+    if (!slug) {
+      window.location.replace('/pulse');
+      return;
+    }
+
+    var main = document.getElementById('not-found-main');
+    if (!main) return;
+
+    main.innerHTML = '<div class="text-center py-20"><p class="text-sm text-on-surface-variant">Loading…</p></div>';
+
+    fetch('https://api.basketiq.co.bw/v1/public/pulse/categories/' + slug)
+      .then(function(res) {
+        if (res.status === 404) {
+          main.innerHTML = '<div class="flex flex-col items-center justify-center px-6 py-16 text-center"><span class="material-symbols-outlined text-5xl text-outline-variant mb-4">category</span><h1 class="font-headline text-2xl font-bold text-on-surface mb-2">Category not found</h1><p class="text-sm text-on-surface-variant mb-6">We don&rsquo;t track &ldquo;' + slug.replace(/-/g, ' ') + '&rdquo; yet.</p><a href="/pulse" class="text-sm font-semibold text-primary hover:underline">Browse live categories</a></div>';
+          return;
+        }
+        if (!res.ok) {
+          main.innerHTML = '<div class="text-center py-16 text-sm text-error">Something went wrong. Please try again.</div>';
+          return;
+        }
+        return res.json();
+      })
+      .then(function(data) {
+        if (!data) return;
+        if (data.published) {
+          // Full snapshot
+          var trendHtml = buildSparklineHtml(data.trend);
+          var pctChangeHtml = data.pct_change_fraction !== null
+            ? '<div class="inline-flex items-center gap-1 bg-primary-fixed/20 text-primary px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">' + (data.pct_change_fraction >= 0 ? 'trending_up' : 'trending_down') + '</span> ' + formatPctChange(data.pct_change_fraction) + ' vs last month</div>'
+            : '<div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">trending_flat</span> no trend</div>';
+          var storeBarsHtml = buildStoreBarsHtml(data.store_rollup);
+          var teaserHtml = buildTeaserHtml(data.teaser, slug, data.receipt_count);
+
+          main.innerHTML =
+            '<div class="px-2 mb-6"><h2 class="font-headline text-on-surface text-3xl font-bold leading-tight mb-1">' + data.display_label + '</h2><p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p></div>' +
+            '<div id="snapshot-content" class="space-y-6">' +
+            '<section class="bg-white border border-outline-variant rounded-xl p-5"><p class="text-sm text-on-surface-variant font-medium mb-2">Typical price shoppers paid</p><div class="font-headline text-on-surface text-5xl font-extrabold tracking-tighter mb-4" data-pulse-field="median_price">' + formatPula(data.median_price) + '</div><div class="flex justify-between text-xs text-on-surface-variant mb-3"><span data-pulse-field="p10_price">' + formatPula(data.p10_price) + '</span><span data-pulse-field="p90_price">' + formatPula(data.p90_price) + '</span></div><p class="text-xs text-on-surface-variant border-t border-outline-variant/30 pt-3">Based on <span data-pulse-field="receipt_count">' + data.receipt_count.toLocaleString() + '</span> till-verified receipts</p></section>' +
+            '<section class="bg-white border border-outline-variant rounded-xl p-5 grid grid-cols-2 gap-4"><div class="flex flex-col justify-between border-r border-outline-variant/30 pr-4"><div>' + pctChangeHtml + '</div>' + trendHtml + '<p class="text-[10px] text-on-surface-variant mt-2">30-day sparkline</p></div><div class="flex flex-col justify-center pl-2"><span class="material-symbols-outlined text-outline-variant text-2xl">lock</span><h3 class="font-headline text-on-surface text-sm font-semibold leading-tight mt-2">Full 6-month price history</h3><button type="button" class="lock-row text-sm font-medium text-primary-container hover:underline mt-1 text-left" data-insight-type="history_unlock" data-slug="' + slug + '">Contact us to unlock →</button></div></section>' +
+            storeBarsHtml + teaserHtml + '</div>';
+
+          // D1c refresh
+          var fieldMap = {
+            median_price: formatPula(data.median_price),
+            p10_price: formatPula(data.p10_price),
+            p90_price: formatPula(data.p90_price),
+            receipt_count: String(data.receipt_count),
+            pct_change_fraction: formatPctChange(data.pct_change_fraction)
+          };
+          document.querySelectorAll('[data-pulse-field]').forEach(function(el) {
+            var field = el.getAttribute('data-pulse-field');
+            if (field && fieldMap[field]) el.textContent = fieldMap[field];
+          });
+
+          // Lookup beacon
+          fetch('https://api.basketiq.co.bw/v1/public/pulse/lookups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug: slug, referrer: document.referrer, session_hash: mpGetHash(), website: '' })
+          }).catch(function() {});
+
+          if (window.umami) window.umami.track('category_view', { slug: slug });
+        } else {
+          // Small-n
+          var pct = Math.round((data.receipt_count / (data.receipts_required || 30)) * 100);
+          var fallback = data.fallback || null;
+          main.innerHTML =
+            '<div class="w-full max-w-md mx-auto px-4 py-8 flex flex-col gap-8">' +
+            '<section class="flex flex-col gap-1 px-2"><h1 class="font-headline text-3xl font-bold text-on-surface">' + data.display_label + '</h1><p class="text-sm text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-base">location_on</span>Botswana · formal grocery retail</p></section>' +
+            '<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-4 shadow-sm"><div class="flex flex-col gap-1"><h2 class="font-headline text-xl font-semibold text-on-surface">We\'re still building this picture.</h2><p class="text-sm text-on-surface-variant">We have ' + data.receipt_count + ' verified receipts for this category — we publish a snapshot at ' + (data.receipts_required || 30) + '.</p></div><div class="flex flex-col gap-1"><div class="w-full bg-surface-variant h-2 rounded overflow-hidden" role="progressbar"><div class="bg-primary h-full" style="width: ' + pct + '%"></div></div><span class="text-xs text-outline">' + data.receipt_count + ' of ' + (data.receipts_required || 30) + ' receipts</span></div></article>' +
+            (fallback ? '<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm"><h3 class="text-xs text-on-surface-variant uppercase tracking-wider">Nearby category: ' + fallback.display_label + '</h3><div><span class="font-headline text-2xl font-bold text-on-surface">' + formatPula(fallback.median_price) + ' typical</span></div><p class="text-sm text-outline">Based on ' + fallback.receipt_count.toLocaleString() + ' till-verified receipts</p><a href="/pulse/' + fallback.slug + '" class="text-sm font-semibold text-primary inline-flex items-center gap-1">View full snapshot <span class="material-symbols-outlined text-base">arrow_forward</span></a></article>' : '') +
+            '<section class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-4"><h2 class="font-headline text-xl font-semibold text-on-surface leading-tight">Be first to know when this category goes live.</h2><form id="dyn-notify-form" class="flex flex-col gap-3"><input id="dyn-notify-phone" type="tel" required class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="WhatsApp number"/><p id="dyn-notify-error" class="hidden text-sm text-error bg-error-container/50 rounded-lg px-3 py-2">Please enter a valid WhatsApp number.</p><p id="dyn-notify-success" class="hidden text-sm text-primary border border-primary-container/30 bg-primary-fixed/10 rounded-lg px-3 py-2 text-center">We\'ll WhatsApp you once the snapshot is ready. Nothing else.</p><button type="submit" id="dyn-notify-submit" class="w-full bg-primary text-primary-fixed font-headline font-bold text-sm py-3 px-4 rounded-lg flex justify-center items-center gap-1">Notify me on WhatsApp</button></form><p class="text-xs text-on-surface-variant text-center">One message when the snapshot is ready. Nothing else.</p></section>' +
+            '<div class="flex justify-center pb-8"><a href="/pulse" class="text-sm font-semibold text-primary inline-flex items-center gap-1">Browse categories with live data <span class="material-symbols-outlined text-base">arrow_forward</span></a></div>' +
+            '</div>';
+
+          // Wire notify-me
+          setTimeout(function() {
+            var dynForm = document.getElementById('dyn-notify-form');
+            if (!dynForm) return;
+            dynForm.addEventListener('submit', function(e) {
+              e.preventDefault();
+              var phoneInput = document.getElementById('dyn-notify-phone');
+              var errEl = document.getElementById('dyn-notify-error');
+              var successEl = document.getElementById('dyn-notify-success');
+              var submitBtn = document.getElementById('dyn-notify-submit');
+              var phone = phoneInput.value.trim();
+              errEl.classList.add('hidden');
+              successEl.classList.add('hidden');
+              if (!phone) { errEl.classList.remove('hidden'); return; }
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Sending…';
+              fetch('https://api.basketiq.co.bw/v1/public/pulse/notify-me', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug: slug, phone_number: phone, session_hash: mpGetHash(), website: '' })
+              })
+              .then(function(res) {
+                if (res.ok && res.status === 202) {
+                  successEl.classList.remove('hidden');
+                  submitBtn.textContent = 'Done';
+                  if (window.umami) window.umami.track('notify_me', { slug: slug });
+                } else if (res.status === 422) {
+                  errEl.textContent = 'Please enter a valid WhatsApp number.';
+                  errEl.classList.remove('hidden');
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'Notify me on WhatsApp';
+                } else {
+                  throw new Error('Unexpected status');
+                }
+              })
+              .catch(function() {
+                errEl.textContent = 'Something went wrong. Please try again.';
+                errEl.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Notify me on WhatsApp';
+              });
+            });
+          }, 100);
+        }
+      })
+      .catch(function() {
+        main.innerHTML = '<div class="text-center py-16 text-sm text-error">Something went wrong. Please try again.</div>';
+      });
+  })();
+</script>

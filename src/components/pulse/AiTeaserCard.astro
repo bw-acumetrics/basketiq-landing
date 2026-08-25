@@ -1,0 +1,83 @@
+---
+// BasketIQ AI teaser card — FREE insight + locked rows. All-null card hides entirely.
+import { formatPula, type TeaserFields } from '../../lib/pulse';
+import LockedRow from './LockedRow.astro';
+
+interface Props {
+  teaser: TeaserFields;
+  slug: string;
+  receiptCount: number;
+}
+
+const { teaser, slug, receiptCount } = Astro.props;
+
+const freeRows: string[] = [];
+if (teaser.avg_trip_spend !== null) {
+  const parts = [`Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container">${formatPula(teaser.avg_trip_spend)}</span> on average per trip`];
+  if (teaser.trip_basket_count !== null) {
+    parts.push(`, in baskets of <span class="font-headline font-bold text-primary-container">${teaser.trip_basket_count}</span> items`);
+  }
+  freeRows.push(parts.join(''));
+}
+
+const lockedRows: { text: string; insightType: string }[] = [];
+if (teaser.bought_together_count !== null) {
+  lockedRows.push({
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.bought_together_count}</span> products usually bought together with this item`,
+    insightType: 'bought_together',
+  });
+}
+if (teaser.co_basket_brand_count !== null) {
+  lockedRows.push({
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
+    insightType: 'co_basket_brands',
+  });
+}
+if (teaser.competing_brand_count !== null) {
+  lockedRows.push({
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.competing_brand_count}</span> competing brands in this category`,
+    insightType: 'competing_brands',
+  });
+}
+
+const showCard = freeRows.length > 0 || lockedRows.length > 0;
+---
+
+{showCard && (
+  <section class="bg-white border border-outline-variant border-l-[3px] border-l-primary-container rounded-xl p-5 space-y-3">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary-container text-sm">auto_awesome</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-primary-container">BASKETIQ AI</span>
+      </div>
+      <span class="bg-primary-fixed/20 text-primary text-xs px-2 py-0.5 rounded-full">from {receiptCount.toLocaleString()} baskets</span>
+    </div>
+
+    <div class="space-y-0">
+      {freeRows.length > 0 && (
+        <div class="flex items-center justify-between py-2">
+          <p class="text-sm text-on-surface flex-1" set:html={freeRows[0]}></p>
+          <span class="bg-primary-fixed/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded ml-2 whitespace-nowrap">FREE INSIGHT</span>
+        </div>
+      )}
+
+      {lockedRows.length > 0 && freeRows.length > 0 && <div class="border-t border-outline-variant/30"></div>}
+      {lockedRows.length > 0 && <p class="text-xs text-on-surface-variant pt-1">Our AI found more insights like this:</p>}
+      {lockedRows.map((r) => (
+        <LockedRow text={r.text} insightType={r.insightType} slug={slug} />
+      ))}
+    </div>
+
+    <div class="space-y-2 pt-1">
+      <button
+        type="button"
+        class="lock-row w-full bg-primary-container text-white font-headline font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity"
+        data-insight-type="general"
+        data-slug={slug}
+      >
+        Contact us — get the full breakdown
+      </button>
+      <p class="text-center text-xs text-on-surface-variant">Free consultation · WhatsApp or email</p>
+    </div>
+  </section>
+)}

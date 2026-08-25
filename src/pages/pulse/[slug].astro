@@ -1,0 +1,167 @@
+---
+// /pulse/<slug> — per-category snapshot with OG tags, price panel, sparkline, store bars,
+// AI teaser, Price Position Check, and D1c mount-refresh.
+import type { GetStaticPaths } from 'astro';
+import Pulse from '../../layouts/Pulse.astro';
+import PulseTopBar from '../../components/pulse/PulseTopBar.astro';
+import PulseFooter from '../../components/pulse/PulseFooter.astro';
+import PricePanel from '../../components/pulse/PricePanel.astro';
+import Sparkline from '../../components/pulse/Sparkline.astro';
+import StoreShareBars from '../../components/pulse/StoreShareBars.astro';
+import AiTeaserCard from '../../components/pulse/AiTeaserCard.astro';
+import ContactSheet from '../../components/pulse/ContactSheet.astro';
+import PriceCheck from '../../components/pulse/PriceCheck.astro';
+import VerdictView from '../../components/pulse/VerdictView.astro';
+import {
+  fetchCategories,
+  fetchSnapshot,
+  formatPula,
+  formatPctChange,
+  type CategorySnapshot,
+} from '../../lib/pulse';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const categories = await fetchCategories();
+
+  // D2 regression tripwire — if the cap regressed we won't silently drop ~40 pages.
+  if (categories.length <= 60) {
+    throw new Error(
+      `Market Pulse build failed: only ${categories.length} categories returned (cap may be at 60, not 250). Refusing to produce a truncated site.`,
+    );
+  }
+
+  return categories
+    .filter((c) => {
+      // Exclude slugs containing a dot — no current categories have them, but they break CF Pages routing.
+      if (c.slug.includes('.')) {
+        console.warn(`Market Pulse: excluding slug "${c.slug}" — contains '.' (breaks CF Pages static routing)`);
+        return false;
+      }
+      return true;
+    })
+    .map((c) => ({
+      params: { slug: c.slug },
+    }));
+};
+
+const { slug } = Astro.params as { slug: string };
+
+// Re-fetch at build time for the page data
+const data: CategorySnapshot = await fetchSnapshot(slug);
+
+const ogTitle = `${data.display_label} — Market Pulse | BasketIQ`;
+const ogDescription = `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`;
+const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
+---
+
+<Pulse title={ogTitle} description={ogDescription} ogUrl={canonicalUrl}>
+  <PulseTopBar />
+
+  <main class="flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24">
+    <!-- Category Header -->
+    <div class="px-2">
+      <h2 class="font-headline text-on-surface text-3xl font-bold leading-tight mb-1">{data.display_label}</h2>
+      <p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p>
+    </div>
+
+    <!-- Snapshot content — hidden when verdict is shown -->
+    <div id="snapshot-content" class="space-y-6">
+      <!-- Price Panel -->
+      <PricePanel snapshot={data} />
+
+      <!-- Trend card: sparkline + locked history row -->
+      <section class="bg-white border border-outline-variant rounded-xl p-5 grid grid-cols-2 gap-4">
+        <div class="flex flex-col justify-between border-r border-outline-variant/30 pr-4">
+          <div>
+            {data.pct_change_fraction !== null ? (
+              <div class="inline-flex items-center gap-1 bg-primary-fixed/20 text-primary px-2 py-1 rounded text-xs font-bold mb-4">
+                <span class="material-symbols-outlined text-sm">{data.pct_change_fraction >= 0 ? 'trending_up' : 'trending_down'}</span>
+                <span data-pulse-field="pct_change_fraction">{formatPctChange(data.pct_change_fraction)}</span> vs last month
+              </div>
+            ) : (
+              <div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4">
+                <span class="material-symbols-outlined text-sm">trending_flat</span>
+                no trend
+              </div>
+            )}
+          </div>
+          <Sparkline trend={data.trend} />
+          <p class="text-[10px] text-on-surface-variant mt-2">30-day sparkline</p>
+        </div>
+        <div class="flex flex-col justify-center pl-2">
+          <span class="material-symbols-outlined text-outline-variant text-2xl">lock</span>
+          <h3 class="font-headline text-on-surface text-sm font-semibold leading-tight mt-2">Full 6-month price history</h3>
+          <button
+            type="button"
+            class="lock-row text-sm font-medium text-primary-container hover:underline mt-1 text-left"
+            data-insight-type="history_unlock"
+            data-slug={slug}
+          >
+            Contact us to unlock &rarr;
+          </button>
+        </div>
+      </section>
+
+      <!-- Store Share Bars -->
+      <StoreShareBars shares={data.store_shares} />
+
+      <!-- AI Teaser Card -->
+      <AiTeaserCard teaser={data.teaser} slug={slug} receiptCount={data.receipt_count} />
+
+      <!-- Price Position Check — only on published, rendered at build time -->
+      {data.published && <PriceCheck slug={slug} />}
+    </div>
+
+    <!-- Verdict View — hidden initially, filled client-side after price check -->
+    <VerdictView p10Price={data.p10_price} p90Price={data.p90_price} />
+  </main>
+
+  <PulseFooter />
+
+  <!-- Contact Sheet (shared dialog) -->
+  <ContactSheet />
+</Pulse>
+
+
+<script define:vars={{ slug: JSON.stringify(slug) }}>
+  // D1c mount-refresh — refetch live data and overwrite baked fields.
+  (async () => {
+    try {
+      const res = await fetch(`https://api.basketiq.co.bw/v1/public/pulse/categories/${slug}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      // Overwrite data-pulse-field elements
+      const fieldMap = {
+        median_price: `P ${data.median_price.toFixed(2)}`,
+        avg_price: `P ${data.avg_price.toFixed(2)}`,
+        p10_price: `P ${data.p10_price.toFixed(2)}`,
+        p90_price: `P ${data.p90_price.toFixed(2)}`,
+        receipt_count: String(data.receipt_count),
+        pct_change_fraction: data.pct_change_fraction !== null
+          ? `${data.pct_change_fraction >= 0 ? '+' : '\u2212'}${Math.abs(data.pct_change_fraction * 100).toFixed(1)}%`
+          : 'no trend',
+      };
+      document.querySelectorAll('[data-pulse-field]').forEach(function(el) {
+        var field = el.getAttribute('data-pulse-field');
+        if (field && fieldMap[field]) el.textContent = fieldMap[field];
+      });
+    } catch {
+      // Refresh failure leaves baked values in place silently.
+    }
+  })();
+
+  // Lookup beacon — fire-and-forget.
+  (function() {
+    var hash = (function() { try { return sessionStorage.getItem('mp_session_hash') || (function() { var h = crypto.randomUUID(); sessionStorage.setItem('mp_session_hash', h); return h; })(); } catch(e) { return crypto.randomUUID(); } })();
+    fetch('https://api.basketiq.co.bw/v1/public/pulse/lookups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: slug, referrer: document.referrer, session_hash: hash, website: '' }),
+    }).catch(function() {});
+  })();
+
+  // Umami category_view
+  if (typeof window !== 'undefined' && window.umami) {
+    window.umami.track('category_view', { slug: slug });
+  }
+</script>

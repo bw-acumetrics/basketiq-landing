@@ -1,0 +1,123 @@
+---
+// VerdictView — rendered in-page after price check. Hidden initially, shown on POST response.
+// Wholesaler-avg line DELETED per #520 D5 (no per-rollup price in v1 — basketiq#522).
+interface Props {
+  p10Price: number;
+  p90Price: number;
+}
+
+const { p10Price, p90Price } = Astro.props;
+
+function formatPula(v: number): string {
+  return `P ${v.toFixed(2)}`;
+}
+---
+
+<div id="verdict-container" class="hidden space-y-6">
+  <!-- Verdict Card -->
+  <section class="bg-white border border-outline-variant rounded-xl p-6 flex flex-col gap-4 relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-1 bg-primary-container"></div>
+    <h1 id="verdict-title" class="font-headline text-2xl font-bold text-on-surface">
+      Your price is <span class="text-primary-container">X% BELOW</span> market typical
+    </h1>
+
+    <!-- Position Gauge -->
+    <div class="pt-4 pb-2 flex flex-col gap-1">
+      <div class="relative h-2 bg-surface-container-high rounded-sm w-full">
+        <div id="verdict-median-marker" class="absolute top-1/2 -translate-y-1/2 w-1 h-4 bg-outline" style="left: 65%;">
+          <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-center w-24">
+            <span class="block text-xs text-outline">Market typical</span>
+            <span id="verdict-median-price" class="block text-sm text-on-surface font-semibold">{formatPula(0)}</span>
+          </div>
+        </div>
+        <div id="verdict-user-marker" class="absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-container z-10" style="left: 45%;">
+          <div class="absolute top-full mt-1 left-1/2 -translate-x-1/2 text-center w-16">
+            <span class="block text-xs text-primary-container font-bold">You</span>
+            <span id="verdict-you-price" class="block text-sm text-primary-container font-bold">{formatPula(0)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-between text-xs text-outline mt-8">
+        <span id="verdict-p10">{formatPula(p10Price)}</span>
+        <span id="verdict-p90">{formatPula(p90Price)}</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-low p-3 rounded-sm border border-outline-variant mt-1">
+      <p class="text-sm text-on-surface">
+        <span id="verdict-position-pct" class="font-semibold text-primary-container">68%</span> of verified purchases were made at a price higher than yours.
+      </p>
+    </div>
+    <p id="verdict-receipts" class="text-xs text-outline">Based on 0 till-verified receipts</p>
+  </section>
+
+  <!-- What This Means -->
+  <section class="bg-white border border-outline-variant rounded-xl p-4 flex flex-col gap-3">
+    <h2 class="text-xs font-semibold text-outline uppercase tracking-wider mb-1">What this means</h2>
+    <div class="flex gap-3 items-start">
+      <span class="material-symbols-outlined text-primary-container text-xl mt-0.5" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+      <p class="text-sm text-on-surface">Room to hold price: shoppers are already paying more elsewhere.</p>
+    </div>
+  </section>
+
+  <!-- Share Block -->
+  <section class="bg-primary rounded-xl p-6 flex flex-col gap-4 text-center items-center shadow-md">
+    <p class="text-sm text-white">Show your customers you price below market.</p>
+    <button
+      id="share-btn"
+      type="button"
+      class="w-full bg-primary-container hover:opacity-90 text-white font-headline text-base font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors"
+      data-verdict-text=""
+      data-receipt-count="0"
+      data-category-url=""
+    >
+      <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">forum</span>
+      Share this result on WhatsApp
+    </button>
+    <button id="check-another-btn" type="button" class="text-xs text-primary-fixed underline hover:opacity-80 transition-opacity mt-1">
+      Check another product
+    </button>
+  </section>
+
+  <!-- Brand Watch upsell -->
+  <section class="bg-white border border-outline-variant rounded-xl p-6 flex flex-col gap-4 items-start">
+    <h3 class="font-headline text-xl font-bold text-on-surface">Want this for every product you sell, every month?</h3>
+    <p class="text-sm text-on-surface-variant">Brand Watch tracks your categories and sends you a monthly report.</p>
+    <button
+      type="button"
+      class="lock-row border border-outline-variant text-on-surface font-headline text-sm font-bold py-2 px-6 rounded-xl hover:bg-surface-container-low transition-colors"
+      data-insight-type="brand_watch"
+      data-slug=""
+    >
+      Talk to us
+    </button>
+  </section>
+</div>
+
+<script>
+  document.getElementById('share-btn').addEventListener('click', function() {
+    var text = this.dataset.verdictText || '';
+    var count = this.dataset.receiptCount || '0';
+    var url = this.dataset.categoryUrl || window.location.href;
+    var msg = text + '\nBased on ' + count + ' till-verified receipts\n\nSee more: ' + url;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    if (window.umami) window.umami.track('share_tap');
+  });
+
+  document.getElementById('check-another-btn').addEventListener('click', function() {
+    var verdictContainer = document.getElementById('verdict-container');
+    var snapshotContent = document.getElementById('snapshot-content');
+    var priceCheckCard = document.getElementById('price-check-card');
+    if (verdictContainer) verdictContainer.classList.add('hidden');
+    if (snapshotContent) snapshotContent.classList.remove('hidden');
+    if (priceCheckCard) priceCheckCard.classList.remove('hidden');
+    var input = document.getElementById('price-input');
+    if (input) input.value = '';
+  });
+
+  // Wire brand-watch CTA slug
+  var brandWatchBtn = document.querySelector('#verdict-container .lock-row[data-insight-type="brand_watch"]');
+  if (brandWatchBtn) {
+    brandWatchBtn.dataset.slug = window.location.pathname.split('/pulse/')[1] || '';
+  }
+</script>
