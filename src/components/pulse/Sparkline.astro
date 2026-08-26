@@ -1,6 +1,7 @@
 ---
 // 30-point sparkline — inline SVG. Null values render as gaps; x-axis preserved.
-import type { TrendPoint } from '../../lib/pulse';
+// Geometry comes from buildSparkline() so the D1c redraw matches the baked line.
+import { buildSparkline, type TrendPoint } from '../../lib/pulse';
 
 interface Props {
   trend: TrendPoint[];
@@ -8,40 +9,15 @@ interface Props {
 }
 
 const { trend, height = 48 } = Astro.props;
-const w = trend.length > 1 ? trend.length - 1 : 1;
-const values = trend.map((p) => p.value).filter((v): v is number => v !== null);
-const max = values.length > 0 ? Math.max(...values) : 1;
-const min = values.length > 0 ? Math.min(...values) : 0;
-const range = max - min || 1;
-const pad = 4;
-
-const toX = (i: number) => pad + (i / w) * (200 - 2 * pad);
-const toY = (v: number) => pad + (1 - (v - min) / range) * (height - 2 * pad);
-
-// Build path segments — nulls break the polyline.
-let segments: string[] = [];
-let currentSegment: string[] = [];
-for (let i = 0; i < trend.length; i++) {
-  if (trend[i].value !== null) {
-    currentSegment.push(`${i === 0 || currentSegment.length === 0 ? 'M' : 'L'}${toX(i).toFixed(1)} ${toY(trend[i].value!).toFixed(1)}`);
-  } else {
-    if (currentSegment.length > 0) {
-      segments.push(currentSegment.join(' '));
-      currentSegment = [];
-    }
-  }
-}
-if (currentSegment.length > 0) segments.push(currentSegment.join(' '));
+const { segments, gaps } = buildSparkline(trend, height);
 ---
 
-<svg viewBox={`0 0 200 ${height}`} class="w-full h-12" preserveAspectRatio="none" aria-label="30-day price sparkline">
-  {segments.map((d, idx) => (
-    <path d={d} fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" key={idx} />
+<svg viewBox={`0 0 200 ${height}`} class="w-full h-12" preserveAspectRatio="none" aria-label="30-day price sparkline" data-pulse-sparkline>
+  {segments.map((d) => (
+    <path d={d} fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
   ))}
   <!-- Null markers — small gaps -->
-  {trend.map((p, i) =>
-    p.value === null ? (
-      <circle cx={toX(i).toFixed(1)} cy={(height / 2).toFixed(1)} r="1.5" fill="none" stroke="#c1c7cb" stroke-width="1" key={`g-${i}`} />
-    ) : null
-  )}
+  {gaps.map((g) => (
+    <circle cx={g.cx} cy={g.cy} r="1.5" fill="none" stroke="#c1c7cb" stroke-width="1" />
+  ))}
 </svg>

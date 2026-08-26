@@ -59,9 +59,9 @@ export interface PublicMetrics {
 
 export interface PriceCheckResponse {
   position_pct: number;
-  direction: string;
-  delta_fraction: number;
-  median_price: number;
+  direction: 'above' | 'below' | 'at';
+  delta_fraction: number | null; // normalized from string|null
+  median_price: number | null;
 }
 
 // ---- normalizers ----
@@ -88,7 +88,7 @@ function normalizeItem(raw: Record<string, unknown>): CategoryListItem {
   };
 }
 
-function normalizeSnapshot(raw: Record<string, unknown>): CategorySnapshot {
+export function normalizeSnapshot(raw: Record<string, unknown>): CategorySnapshot {
   const trend: TrendPoint[] = Array.isArray(raw.trend)
     ? raw.trend.map((p: Record<string, unknown>) => ({ value: toNullableNum(p.value) }))
     : [];
@@ -155,6 +155,62 @@ export function formatPctChange(fraction: number | null): string {
   return `${sign}${Math.abs(pct).toFixed(1)}%`;
 }
 
+/** `direction` is a three-way literal — `at` is an exact-median hit, not "below". */
+export function formatDirection(direction: string): string {
+  if (direction === 'above') return 'ABOVE';
+  if (direction === 'below') return 'BELOW';
+  return 'AT';
+}
+
+/** Escape untrusted text before it goes anywhere near innerHTML. */
+export function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export interface SparklineGeometry {
+  segments: string[];
+  gaps: { cx: string; cy: string }[];
+}
+
+/**
+ * Sparkline path geometry — shared by the baked <Sparkline/> and the D1c refresh
+ * so the redrawn line is identical to the one it replaces. Nulls break the
+ * polyline and keep their x-slot (the x-axis never collapses).
+ */
+export function buildSparkline(trend: TrendPoint[], height: number = 48): SparklineGeometry {
+  const w = trend.length > 1 ? trend.length - 1 : 1;
+  const values = trend.map((p) => p.value).filter((v): v is number => v !== null);
+  const max = values.length > 0 ? Math.max(...values) : 1;
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const range = max - min || 1;
+  const pad = 4;
+  const toX = (i: number) => pad + (i / w) * (200 - 2 * pad);
+  const toY = (v: number) => pad + (1 - (v - min) / range) * (height - 2 * pad);
+
+  const segments: string[] = [];
+  const gaps: { cx: string; cy: string }[] = [];
+  let current: string[] = [];
+  for (let i = 0; i < trend.length; i++) {
+    const value = trend[i].value;
+    if (value !== null) {
+      current.push(`${current.length === 0 ? 'M' : 'L'}${toX(i).toFixed(1)} ${toY(value).toFixed(1)}`);
+    } else {
+      gaps.push({ cx: toX(i).toFixed(1), cy: (height / 2).toFixed(1) });
+      if (current.length > 0) {
+        segments.push(current.join(' '));
+        current = [];
+      }
+    }
+  }
+  if (current.length > 0) segments.push(current.join(' '));
+  return { segments, gaps };
+}
+
 /** Opaque client UUID persisted in sessionStorage; falls back to per-page value. */
 export function getSessionHash(): string {
   try {
@@ -212,13 +268,15 @@ export async function postContact(
   contactDetail: string,
   categorySlug: string,
   desiredLookbackDays?: number,
+  honeypot: string = '',
 ): Promise<{ ok: boolean; status: number }> {
   const body: Record<string, unknown> = {
     insight_type: insightType,
     contact_detail: contactDetail.trim().substring(0, 200),
-    category_slug: categorySlug,
+    // ContactRequest names this `slug` (api/pulse_routes.py) — `category_slug` 422s.
+    slug: categorySlug,
     session_hash: getSessionHash(),
-    website: '',
+    website: honeypot,
   };
   if (desiredLookbackDays !== undefined) {
     body.desired_lookback_days = desiredLookbackDays;
@@ -231,21 +289,36 @@ export async function postContact(
   return { ok: res.ok, status: res.status };
 }
 
-export async function postPriceCheck(slug: string, enteredPrice: number): Promise<PriceCheckResponse> {
+export async function postPriceCheck(
+  slug: string,
+  enteredPrice: number,
+  honeypot: string = '',
+): Promise<PriceCheckResponse> {
   const res = await fetch(`${API_BASE}/v1/public/pulse/categories/${slug}/price-check`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entered_price: enteredPrice, session_hash: getSessionHash(), website: '' }),
+    body: JSON.stringify({ entered_price: enteredPrice, session_hash: getSessionHash(), website: honeypot }),
   });
   if (!res.ok) throw new Error(`Price check failed: ${res.status}`);
-  return res.json();
+  const raw = await res.json();
+  // Prices and fractions come back as JSON strings — normalize before any arithmetic.
+  return {
+    position_pct: toNum(raw.position_pct),
+    direction: raw.direction,
+    delta_fraction: toNullableNum(raw.delta_fraction),
+    median_price: toNullableNum(raw.median_price),
+  };
 }
 
-export async function postNotifyMe(slug: string, phoneNumber: string): Promise<{ ok: boolean; status: number }> {
+export async function postNotifyMe(
+  slug: string,
+  phoneNumber: string,
+  honeypot: string = '',
+): Promise<{ ok: boolean; status: number }> {
   const res = await fetch(`${API_BASE}/v1/public/pulse/notify-me`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug, phone_number: phoneNumber, session_hash: getSessionHash(), website: '' }),
+    body: JSON.stringify({ slug, phone_number: phoneNumber, session_hash: getSessionHash(), website: honeypot }),
   });
   return { ok: res.ok, status: res.status };
 }
@@ -258,14 +331,19 @@ export function whatsappShareUrl(verdictText: string, receiptCount: number, cate
 
 // ---- D1c mount-refresh ----
 
-/** Overwrite every [data-pulse-field] element on the page with live snapshot values. */
+/**
+ * Overwrite every live field on the page with fresh snapshot values.
+ * D1 names: price panel (median/avg/p10/p90), receipt_count, pct_change_fraction,
+ * sparkline, store shares and teaser counts. Labels, slugs and OG tags stay baked.
+ * A null incoming value leaves the baked value in place rather than blanking it.
+ */
 export function refreshLiveFields(data: CategorySnapshot): void {
   const fieldMap: Record<string, string> = {
     median_price: formatPula(data.median_price),
     avg_price: formatPula(data.avg_price),
     p10_price: formatPula(data.p10_price),
     p90_price: formatPula(data.p90_price),
-    receipt_count: String(data.receipt_count),
+    receipt_count: data.receipt_count.toLocaleString(),
     pct_change_fraction: formatPctChange(data.pct_change_fraction),
   };
 
@@ -275,4 +353,63 @@ export function refreshLiveFields(data: CategorySnapshot): void {
       el.textContent = fieldMap[field];
     }
   });
+
+  // Median marker on the P10–P90 range bar moves with the refreshed prices.
+  const markerRange = data.p90_price - data.p10_price || 1;
+  document.querySelectorAll('[data-pulse-range-marker]').forEach((el) => {
+    (el as HTMLElement).style.left = `${((data.median_price - data.p10_price) / markerRange) * 100}%`;
+  });
+
+  // Store shares — percentage label and bar width per rollup.
+  data.store_shares.forEach((share) => {
+    const row = document.querySelector(`[data-pulse-share="${share.store_rollup}"]`);
+    if (!row) return;
+    const pctEl = row.querySelector('[data-pulse-share-pct]');
+    if (pctEl) pctEl.textContent = `${Math.round(share.share_pct)}%`;
+    const barEl = row.querySelector('[data-pulse-share-bar]');
+    if (barEl) (barEl as HTMLElement).style.width = `${share.share_pct}%`;
+  });
+
+  // Teaser counts. A field that has gone null keeps its baked value — the baked
+  // row is valid, just older, and blanking it would render an empty sentence.
+  const teaserMap: Record<string, string | null> = {
+    avg_trip_spend: data.teaser.avg_trip_spend === null ? null : formatPula(data.teaser.avg_trip_spend),
+    trip_basket_count: data.teaser.trip_basket_count === null ? null : String(data.teaser.trip_basket_count),
+    bought_together_count: data.teaser.bought_together_count === null ? null : String(data.teaser.bought_together_count),
+    co_basket_brand_count: data.teaser.co_basket_brand_count === null ? null : String(data.teaser.co_basket_brand_count),
+    competing_brand_count: data.teaser.competing_brand_count === null ? null : String(data.teaser.competing_brand_count),
+  };
+  document.querySelectorAll('[data-pulse-teaser]').forEach((el) => {
+    const field = el.getAttribute('data-pulse-teaser');
+    const value = field ? teaserMap[field] : undefined;
+    if (value) el.textContent = value;
+  });
+
+  // Sparkline — redraw from the shared geometry builder.
+  const svg = document.querySelector('[data-pulse-sparkline]');
+  if (svg && data.trend.length > 0) {
+    const { segments, gaps } = buildSparkline(data.trend);
+    svg.innerHTML =
+      segments
+        .map(
+          (d) =>
+            `<path d="${d}" fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        )
+        .join('') +
+      gaps
+        .map((g) => `<circle cx="${g.cx}" cy="${g.cy}" r="1.5" fill="none" stroke="#c1c7cb" stroke-width="1"/>`)
+        .join('');
+  }
+}
+
+/** Trust-strip verified_receipts is live too (D4c) — refreshed on the /pulse home. */
+export async function refreshPublicMetrics(): Promise<void> {
+  try {
+    const metrics = await fetchPublicMetrics();
+    document.querySelectorAll('[data-pulse-field="verified_receipts"]').forEach((el) => {
+      el.textContent = metrics.verified_receipts.toLocaleString();
+    });
+  } catch {
+    // Refresh failure leaves the baked count in place silently.
+  }
 }

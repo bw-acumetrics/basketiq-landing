@@ -1,7 +1,7 @@
 ---
 // One contact form/dialog driven by data-insight-type.
-// Types: history_unlock (+ desired_lookback_days), bought_together, co_basket_brands,
-// competing_brands, brand_watch, general.
+// Types: the API's closed set only — history_unlock (+ desired_lookback_days),
+// bought_together, co_basket_brands, competing_brands, brand_watch.
 // 202 → frontend-owned confirmation copy; non-2xx → retryable error.
 ---
 
@@ -14,7 +14,7 @@
 
     <form id="contact-form" class="flex flex-col gap-4">
       <input type="hidden" id="contact-insight-type" name="insight_type" />
-      <input type="hidden" id="contact-slug" name="category_slug" />
+      <input type="hidden" id="contact-slug" name="slug" />
       <input type="text" name="website" id="contact-website" class="hidden" tabindex="-1" autocomplete="off" />
 
       <div id="contact-lookback-row" class="hidden">
@@ -76,6 +76,7 @@
   var errorEl = document.getElementById('contact-error');
   var successEl = document.getElementById('contact-success');
   var submitBtn = document.getElementById('contact-submit');
+  var honeypot = document.getElementById('contact-website');
 
   function openContact(insightType, slug, lookbackDays) {
     document.getElementById('contact-insight-type').value = insightType;
@@ -83,6 +84,7 @@
     lookbackRow.classList.toggle('hidden', insightType !== 'history_unlock');
     title.textContent = insightType === 'history_unlock' ? 'Unlock price history' : 'Get full insight';
     detailInput.value = '';
+    if (honeypot) honeypot.value = '';
     errorEl.classList.add('hidden');
     successEl.classList.add('hidden');
     form.classList.remove('hidden');
@@ -98,7 +100,8 @@
   document.addEventListener('click', function(e) {
     var target = e.target.closest('.lock-row');
     if (!target) return;
-    var insightType = target.dataset.insightType || 'general';
+    // Falls back to the closed set's catch-all — 'general' is not a valid insight_type.
+    var insightType = target.dataset.insightType || 'brand_watch';
     var slug = target.dataset.slug || '';
     var lookback = target.dataset.lookbackDays;
     openContact(insightType, slug, lookback);
@@ -117,9 +120,9 @@
     var body = {
       insight_type: insightType,
       contact_detail: contactDetail.trim().substring(0, 200),
-      category_slug: slug,
+      slug: slug,
       session_hash: mpGetHash(),
-      website: ''
+      website: honeypot ? honeypot.value : ''
     };
     if (insightType === 'history_unlock') {
       body.desired_lookback_days = parseInt(document.getElementById('contact-lookback').value, 10);

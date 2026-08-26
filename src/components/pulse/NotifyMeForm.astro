@@ -7,9 +7,10 @@ interface Props {
 const { slug } = Astro.props;
 ---
 
-<section class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
+<section id="notify-card" data-slug={slug} class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
   <h2 class="font-headline text-xl font-semibold text-on-surface leading-tight">Be first to know when this category goes live.</h2>
   <form id="notify-form" class="flex flex-col gap-3">
+    <input type="text" name="website" id="notify-website" class="hidden" tabindex="-1" autocomplete="off" />
     <div class="relative">
       <label for="notify-phone" class="sr-only">WhatsApp number</label>
       <input
@@ -34,24 +35,22 @@ const { slug } = Astro.props;
   <p class="text-xs text-on-surface-variant text-center">One message when the snapshot is ready. Nothing else.</p>
 </section>
 
-<script define:vars={{ slug: JSON.stringify(slug) }}>
-  function mpGetHash() {
-    try {
-      var h = sessionStorage.getItem('mp_session_hash');
-      if (h) return h;
-      h = crypto.randomUUID();
-      sessionStorage.setItem('mp_session_hash', h);
-      return h;
-    } catch(e) { return crypto.randomUUID(); }
-  }
+<script>
+  // Bundled module script (not `define:vars`) so the POST shares pulse.ts.
+  import { postNotifyMe } from '../../lib/pulse';
 
-  document.getElementById('notify-form').addEventListener('submit', async function(e) {
+  const slug = document.getElementById('notify-card')?.dataset.slug ?? '';
+  const form = document.getElementById('notify-form');
+
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    var input = document.getElementById('notify-phone');
-    var errorEl = document.getElementById('notify-error');
-    var successEl = document.getElementById('notify-success');
-    var btn = document.getElementById('notify-submit');
-    var phone = input.value.trim();
+    const input = document.getElementById('notify-phone') as HTMLInputElement | null;
+    const honeypot = document.getElementById('notify-website') as HTMLInputElement | null;
+    const errorEl = document.getElementById('notify-error');
+    const successEl = document.getElementById('notify-success');
+    const btn = document.getElementById('notify-submit') as HTMLButtonElement | null;
+    if (!input || !errorEl || !successEl || !btn) return;
+    const phone = input.value.trim();
 
     errorEl.classList.add('hidden');
     successEl.classList.add('hidden');
@@ -64,32 +63,27 @@ const { slug } = Astro.props;
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
-    try {
-      var res = await fetch('https://api.basketiq.co.bw/v1/public/pulse/notify-me', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: slug, phone_number: phone, session_hash: mpGetHash(), website: '' })
-      });
-      if (res.ok && res.status === 202) {
-        successEl.classList.remove('hidden');
-        btn.textContent = 'Done';
-        if (window.umami) window.umami.track('notify_me', { slug: slug });
-      } else if (res.status === 422) {
-        errorEl.textContent = 'Please enter a valid WhatsApp number.';
-        errorEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Notify me on WhatsApp';
-      } else {
-        errorEl.textContent = 'Something went wrong. Please try again.';
-        errorEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Notify me on WhatsApp';
-      }
-    } catch(e) {
-      errorEl.textContent = 'Something went wrong. Please try again.';
+    const reset = (message: string) => {
+      errorEl.textContent = message;
       errorEl.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Notify me on WhatsApp';
+    };
+
+    try {
+      const res = await postNotifyMe(slug, phone, honeypot?.value ?? '');
+      if (res.status === 202) {
+        successEl.classList.remove('hidden');
+        btn.textContent = 'Done';
+        const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+        if (umami) umami.track('notify_me', { slug });
+      } else if (res.status === 422) {
+        reset('Please enter a valid WhatsApp number.');
+      } else {
+        reset('Something went wrong. Please try again.');
+      }
+    } catch {
+      reset('Something went wrong. Please try again.');
     }
   });
 </script>

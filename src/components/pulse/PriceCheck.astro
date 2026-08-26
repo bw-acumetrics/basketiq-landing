@@ -8,7 +8,7 @@ interface Props {
 const { slug } = Astro.props;
 ---
 
-<section id="price-check-card" class="bg-white border border-outline-variant rounded-xl p-6">
+<section id="price-check-card" data-slug={slug} class="bg-white border border-outline-variant rounded-xl p-6">
   <h3 class="font-headline text-on-surface text-xl font-bold mb-4">How does YOUR price compare?</h3>
   <div class="space-y-4">
     <div>
@@ -22,6 +22,7 @@ const { slug } = Astro.props;
         placeholder="0.00"
       />
     </div>
+    <input type="text" name="website" id="price-check-website" class="hidden" tabindex="-1" autocomplete="off" />
     <button
       id="price-check-btn"
       type="button"
@@ -34,82 +35,88 @@ const { slug } = Astro.props;
   </div>
 </section>
 
-<script define:vars={{ slug: JSON.stringify(slug) }}>
-  function formatPula(v, d) { d = d || 2; return 'P ' + v.toFixed(d); }
-  function formatPctChange(fraction) {
-    if (fraction === null) return 'no trend';
-    var pct = fraction * 100;
-    var sign = pct >= 0 ? '+' : '\u2212';
-    return sign + Math.abs(pct).toFixed(1) + '%';
-  }
-  function mpGetHash() {
-    try {
-      var h = sessionStorage.getItem('mp_session_hash');
-      if (h) return h;
-      h = crypto.randomUUID();
-      sessionStorage.setItem('mp_session_hash', h);
-      return h;
-    } catch(e) { return crypto.randomUUID(); }
+<script>
+  // Bundled module script (not `define:vars`) so the verdict shares pulse.ts:
+  // the string-price normalizers and the single ×100 site in formatPctChange.
+  import { formatPula, formatPctChange, formatDirection, postPriceCheck } from '../../lib/pulse';
+
+  const card = document.getElementById('price-check-card');
+  const slug = card?.dataset.slug ?? '';
+  const checkBtn = document.getElementById('price-check-btn') as HTMLButtonElement | null;
+  const input = document.getElementById('price-input') as HTMLInputElement | null;
+  const honeypot = document.getElementById('price-check-website') as HTMLInputElement | null;
+  const errorEl = document.getElementById('price-check-error');
+
+  function textOf(id: string, fallback: number): number {
+    const el = document.getElementById(id);
+    const parsed = parseFloat((el?.textContent ?? '').replace(/[^0-9.]/g, ''));
+    return isNaN(parsed) ? fallback : parsed;
   }
 
-  var checkBtn = document.getElementById('price-check-btn');
-  var input = document.getElementById('price-input');
-  var errorEl = document.getElementById('price-check-error');
-
-  function renderVerdict(result, enteredPrice, slug) {
-    var snapshotContent = document.getElementById('snapshot-content');
-    var priceCheckCard = document.getElementById('price-check-card');
-    var verdictContainer = document.getElementById('verdict-container');
-    if (snapshotContent) snapshotContent.classList.add('hidden');
-    if (priceCheckCard) priceCheckCard.classList.add('hidden');
+  function renderVerdict(
+    result: { position_pct: number; direction: string; delta_fraction: number | null; median_price: number | null },
+    enteredPrice: number,
+  ) {
+    const snapshotContent = document.getElementById('snapshot-content');
+    const verdictContainer = document.getElementById('verdict-container');
     if (!verdictContainer) return;
+    snapshotContent?.classList.add('hidden');
+    card?.classList.add('hidden');
     verdictContainer.classList.remove('hidden');
 
-    var direction = result.direction === 'above' ? 'ABOVE' : 'BELOW';
-    var pct = formatPctChange(result.delta_fraction);
-    var barePct = pct.replace(/^[\+\u2212]/, '');
-    var verdictTitle = document.getElementById('verdict-title');
-    if (verdictTitle) verdictTitle.innerHTML = 'Your price is <span class="text-primary-container">' + barePct + ' ' + direction + '</span> market typical';
+    // `at` is an exact-median hit and carries no percentage; a null delta_fraction
+    // means the server had no comparison to make — neither may read "no trend".
+    const direction = formatDirection(result.direction);
+    const showPct = result.direction !== 'at' && result.delta_fraction !== null;
+    const barePct = showPct ? formatPctChange(result.delta_fraction).replace(/^[+\u2212]/, '') + ' ' : '';
+    const verdictSentence = 'Your price is ' + barePct + direction + ' market typical';
+    const verdictTitle = document.getElementById('verdict-title');
+    if (verdictTitle) {
+      verdictTitle.innerHTML =
+        'Your price is <span class="text-primary-container">' + barePct + direction + '</span> market typical';
+    }
 
-    var posPctEl = document.getElementById('verdict-position-pct');
+    const posPctEl = document.getElementById('verdict-position-pct');
     if (posPctEl) posPctEl.textContent = Math.round(result.position_pct) + '%';
 
-    var p10Text = document.getElementById('verdict-p10');
-    var p90Text = document.getElementById('verdict-p90');
-    var mdnText = document.getElementById('verdict-median-price');
-    var p10 = parseFloat((p10Text && p10Text.textContent || '').replace(/[^0-9.]/g, '') || '0');
-    var p90 = parseFloat((p90Text && p90Text.textContent || '').replace(/[^0-9.]/g, '') || '1');
-    var mdn = result.median_price;
-    var range = p90 - p10 || 1;
-    var userLeft = Math.max(0, Math.min(100, ((enteredPrice - p10) / range) * 100));
-    var mdnLeft = ((mdn - p10) / range) * 100;
+    const p10 = textOf('verdict-p10', 0);
+    const p90 = textOf('verdict-p90', 1);
+    const range = p90 - p10 || 1;
 
-    var userMarker = document.getElementById('verdict-user-marker');
-    if (userMarker) userMarker.style.left = userLeft + '%';
-    var userLabel = document.getElementById('verdict-you-price');
+    const userMarker = document.getElementById('verdict-user-marker');
+    if (userMarker) {
+      userMarker.style.left = Math.max(0, Math.min(100, ((enteredPrice - p10) / range) * 100)) + '%';
+    }
+    const userLabel = document.getElementById('verdict-you-price');
     if (userLabel) userLabel.textContent = formatPula(enteredPrice);
 
-    var mdnMarker = document.getElementById('verdict-median-marker');
-    if (mdnMarker) mdnMarker.style.left = mdnLeft + '%';
-    if (mdnText) mdnText.textContent = formatPula(result.median_price);
+    // median_price is nullable on the contract — leave the marker where it is if absent.
+    const mdnText = document.getElementById('verdict-median-price');
+    if (result.median_price !== null) {
+      const mdnMarker = document.getElementById('verdict-median-marker');
+      if (mdnMarker) mdnMarker.style.left = ((result.median_price - p10) / range) * 100 + '%';
+      if (mdnText) mdnText.textContent = formatPula(result.median_price);
+    }
 
-    var rcEl = document.querySelector('[data-pulse-field="receipt_count"]');
-    var receiptCount = rcEl ? rcEl.textContent : '0';
-    var receiptNote = document.getElementById('verdict-receipts');
+    const rcEl = document.querySelector('[data-pulse-field="receipt_count"]');
+    const receiptCount = rcEl?.textContent ?? '0';
+    const receiptNote = document.getElementById('verdict-receipts');
     if (receiptNote) receiptNote.textContent = 'Based on ' + receiptCount + ' till-verified receipts';
 
-    var shareBtn = document.getElementById('share-btn');
+    const shareBtn = document.getElementById('share-btn');
     if (shareBtn) {
-      shareBtn.dataset.verdictText = 'Your price is ' + barePct + ' ' + direction + ' market typical';
+      shareBtn.dataset.verdictText = verdictSentence;
       shareBtn.dataset.receiptCount = receiptCount;
       shareBtn.dataset.categoryUrl = window.location.origin + '/pulse/' + slug;
     }
 
-    if (window.umami) window.umami.track('price_check_completed', { slug: slug });
+    const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+    if (umami) umami.track('price_check_completed', { slug });
   }
 
-  checkBtn.addEventListener('click', async function() {
-    var enteredPrice = parseFloat(input.value);
+  checkBtn?.addEventListener('click', async () => {
+    const enteredPrice = parseFloat(input?.value ?? '');
+    if (!errorEl) return;
     if (isNaN(enteredPrice) || enteredPrice <= 0) {
       errorEl.textContent = 'Please enter a valid price.';
       errorEl.classList.remove('hidden');
@@ -119,15 +126,10 @@ const { slug } = Astro.props;
     checkBtn.disabled = true;
     checkBtn.textContent = 'Checking…';
     try {
-      var res = await fetch('https://api.basketiq.co.bw/v1/public/pulse/categories/' + slug + '/price-check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entered_price: enteredPrice, session_hash: mpGetHash(), website: '' })
-      });
-      if (!res.ok) throw new Error('Price check failed: ' + res.status);
-      var result = await res.json();
-      renderVerdict(result, enteredPrice, slug);
-    } catch(err) {
+      // Quantize to the 2dp scale the server stores at, so the echoed price matches.
+      const quantized = Math.round(enteredPrice * 100) / 100;
+      renderVerdict(await postPriceCheck(slug, quantized, honeypot?.value ?? ''), quantized);
+    } catch {
       errorEl.textContent = 'Something went wrong. Please try again.';
       errorEl.classList.remove('hidden');
     } finally {

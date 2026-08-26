@@ -44,8 +44,25 @@ const receipts = metrics.verified_receipts.toLocaleString();
       <p id="search-empty" class="hidden text-center text-sm text-on-surface-variant mt-4">No categories match your search.</p>
     </section>
 
+    <!-- Full baked list — revealed only while a search query is active. -->
+    <section class="flex flex-col gap-2 hidden" id="all-results">
+      <h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Search results</h3>
+      <div class="flex flex-col gap-2" id="all-grid">
+        {categories.map((cat) => (
+          <a
+            href={`/pulse/${cat.slug}`}
+            data-label={cat.display_label.toLowerCase()}
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 flex justify-between items-center gap-3 hover:bg-surface-container-low transition-colors group"
+          >
+            <span class="font-headline text-sm font-semibold text-on-surface group-hover:text-primary transition-colors leading-snug">{cat.display_label}</span>
+            <span class="text-xs text-on-surface-variant whitespace-nowrap">{formatPula(cat.median_price)} typical</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
     <!-- Popular grid -->
-    <section class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4" id="popular-section">
       <h3 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Popular right now</h3>
       <div class="grid grid-cols-2 gap-4" id="popular-grid">
         {popular.map((cat) => (
@@ -66,7 +83,7 @@ const receipts = metrics.verified_receipts.toLocaleString();
     <!-- Trust strip -->
     <section class="bg-surface-container-lowest border border-outline-variant rounded-xl flex items-center justify-between p-4 text-center divide-x divide-outline-variant shadow-sm">
       <div class="flex flex-col flex-1 px-2">
-        <span class="font-headline text-lg text-on-surface font-bold">{receipts}</span>
+        <span class="font-headline text-lg text-on-surface font-bold" data-pulse-field="verified_receipts">{receipts}</span>
         <span class="text-xs text-on-surface-variant">verified receipts</span>
       </div>
       <div class="flex flex-col flex-1 px-2">
@@ -80,7 +97,7 @@ const receipts = metrics.verified_receipts.toLocaleString();
 
     <!-- B2B teaser -->
     <a
-      href="/pulse/{categories[0]?.slug ?? ''}"
+      href={`/pulse/${popular[0]?.slug ?? ''}`}
       class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex items-center justify-between group hover:bg-surface-container-low transition-colors"
     >
       <span class="text-sm text-on-surface-variant pr-4">Sell FMCG products? Check how your price compares — free.</span>
@@ -92,22 +109,38 @@ const receipts = metrics.verified_receipts.toLocaleString();
 </Pulse>
 
 <script>
-  // Client-side search filter over the full baked list.
+  // Client-side search filter over the FULL baked list (all categories, not just
+  // the 12 popular cards). No per-keystroke network.
+  import { refreshPublicMetrics } from '../../lib/pulse';
+
   const searchInput = document.getElementById('category-search') as HTMLInputElement | null;
-  const grid = document.getElementById('popular-grid');
+  const allResults = document.getElementById('all-results');
+  const allGrid = document.getElementById('all-grid');
+  const popularSection = document.getElementById('popular-section');
   const emptyMsg = document.getElementById('search-empty');
-  if (searchInput && grid && emptyMsg) {
-    const cards = grid.querySelectorAll('a');
+
+  if (searchInput && allResults && allGrid && popularSection && emptyMsg) {
+    const cards = Array.from(allGrid.querySelectorAll('a'));
     searchInput.addEventListener('input', () => {
       const q = searchInput.value.trim().toLowerCase();
+      if (q === '') {
+        allResults.classList.add('hidden');
+        popularSection.classList.remove('hidden');
+        emptyMsg.classList.add('hidden');
+        return;
+      }
       let visible = 0;
       cards.forEach((card) => {
-        const label = (card.querySelector('span')?.textContent ?? '').toLowerCase();
-        const match = label.includes(q);
-        (card as HTMLElement).style.display = q === '' || match ? '' : 'none';
+        const match = (card.dataset.label ?? '').includes(q);
+        card.style.display = match ? '' : 'none';
         if (match) visible++;
       });
-      emptyMsg.classList.toggle('hidden', visible > 0 || q === '');
+      allResults.classList.remove('hidden');
+      popularSection.classList.add('hidden');
+      emptyMsg.classList.toggle('hidden', visible > 0);
     });
   }
+
+  // D4c trust strip: verified_receipts refreshes on mount like every other live field.
+  refreshPublicMetrics();
 </script>

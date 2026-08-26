@@ -13,9 +13,9 @@ const { teaser, slug, receiptCount } = Astro.props;
 
 const freeRows: string[] = [];
 if (teaser.avg_trip_spend !== null) {
-  const parts = [`Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container">${formatPula(teaser.avg_trip_spend)}</span> on average per trip`];
+  const parts = [`Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend)}</span> on average per trip`];
   if (teaser.trip_basket_count !== null) {
-    parts.push(`, in baskets of <span class="font-headline font-bold text-primary-container">${teaser.trip_basket_count}</span> items`);
+    parts.push(`, in baskets of <span class="font-headline font-bold text-primary-container" data-pulse-teaser="trip_basket_count">${teaser.trip_basket_count}</span> items`);
   }
   freeRows.push(parts.join(''));
 }
@@ -23,19 +23,19 @@ if (teaser.avg_trip_spend !== null) {
 const lockedRows: { text: string; insightType: string }[] = [];
 if (teaser.bought_together_count !== null) {
   lockedRows.push({
-    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.bought_together_count}</span> products usually bought together with this item`,
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="bought_together_count">${teaser.bought_together_count}</span> products usually bought together with this item`,
     insightType: 'bought_together',
   });
 }
 if (teaser.co_basket_brand_count !== null) {
   lockedRows.push({
-    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="co_basket_brand_count">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
     insightType: 'co_basket_brands',
   });
 }
 if (teaser.competing_brand_count !== null) {
   lockedRows.push({
-    text: `Our AI identified <span class="font-headline font-bold text-primary-container">${teaser.competing_brand_count}</span> competing brands in this category`,
+    text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="competing_brand_count">${teaser.competing_brand_count}</span> competing brands in this category`,
     insightType: 'competing_brands',
   });
 }
@@ -50,7 +50,7 @@ const showCard = freeRows.length > 0 || lockedRows.length > 0;
         <span class="material-symbols-outlined text-primary-container text-sm">auto_awesome</span>
         <span class="text-xs font-bold uppercase tracking-wider text-primary-container">BASKETIQ AI</span>
       </div>
-      <span class="bg-primary-fixed/20 text-primary text-xs px-2 py-0.5 rounded-full">from {receiptCount.toLocaleString()} baskets</span>
+      <span class="bg-primary-fixed/20 text-primary text-xs px-2 py-0.5 rounded-full">from <span data-pulse-field="receipt_count">{receiptCount.toLocaleString()}</span> baskets</span>
     </div>
 
     <div class="space-y-0">
@@ -72,7 +72,7 @@ const showCard = freeRows.length > 0 || lockedRows.length > 0;
       <button
         type="button"
         class="lock-row w-full bg-primary-container text-white font-headline font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity"
-        data-insight-type="general"
+        data-insight-type="brand_watch"
         data-slug={slug}
       >
         Contact us — get the full breakdown

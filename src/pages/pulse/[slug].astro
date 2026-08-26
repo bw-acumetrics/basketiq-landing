@@ -57,7 +57,7 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
 <Pulse title={ogTitle} description={ogDescription} ogUrl={canonicalUrl}>
   <PulseTopBar />
 
-  <main class="flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24">
+  <main id="pulse-category" data-slug={slug} class="flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24">
     <!-- Category Header -->
     <div class="px-2">
       <h2 class="font-headline text-on-surface text-3xl font-bold leading-tight mb-1">{data.display_label}</h2>
@@ -123,45 +123,26 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
 </Pulse>
 
 
-<script define:vars={{ slug: JSON.stringify(slug) }}>
-  // D1c mount-refresh — refetch live data and overwrite baked fields.
-  (async () => {
-    try {
-      const res = await fetch(`https://api.basketiq.co.bw/v1/public/pulse/categories/${slug}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      // Overwrite data-pulse-field elements
-      const fieldMap = {
-        median_price: `P ${data.median_price.toFixed(2)}`,
-        avg_price: `P ${data.avg_price.toFixed(2)}`,
-        p10_price: `P ${data.p10_price.toFixed(2)}`,
-        p90_price: `P ${data.p90_price.toFixed(2)}`,
-        receipt_count: String(data.receipt_count),
-        pct_change_fraction: data.pct_change_fraction !== null
-          ? `${data.pct_change_fraction >= 0 ? '+' : '\u2212'}${Math.abs(data.pct_change_fraction * 100).toFixed(1)}%`
-          : 'no trend',
-      };
-      document.querySelectorAll('[data-pulse-field]').forEach(function(el) {
-        var field = el.getAttribute('data-pulse-field');
-        if (field && fieldMap[field]) el.textContent = fieldMap[field];
-      });
-    } catch {
-      // Refresh failure leaves baked values in place silently.
-    }
-  })();
+<script>
+  // D1c mount-refresh + lookup beacon. A bundled module script (not `define:vars`)
+  // so it shares pulse.ts — the single ×100 site and the string-price normalizers.
+  import { fetchSnapshot, refreshLiveFields, postLookup } from '../../lib/pulse';
 
-  // Lookup beacon — fire-and-forget.
-  (function() {
-    var hash = (function() { try { return sessionStorage.getItem('mp_session_hash') || (function() { var h = crypto.randomUUID(); sessionStorage.setItem('mp_session_hash', h); return h; })(); } catch(e) { return crypto.randomUUID(); } })();
-    fetch('https://api.basketiq.co.bw/v1/public/pulse/lookups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug: slug, referrer: document.referrer, session_hash: hash, website: '' }),
-    }).catch(function() {});
-  })();
+  const slug = document.getElementById('pulse-category')?.dataset.slug ?? '';
 
-  // Umami category_view
-  if (typeof window !== 'undefined' && window.umami) {
-    window.umami.track('category_view', { slug: slug });
+  if (slug) {
+    (async () => {
+      try {
+        refreshLiveFields(await fetchSnapshot(slug));
+      } catch {
+        // Refresh failure leaves baked values in place silently.
+      }
+    })();
+
+    // Lookup beacon — fire-and-forget, failure swallowed by design.
+    postLookup(slug, document.referrer);
+
+    const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+    if (umami) umami.track('category_view', { slug });
   }
 </script>
