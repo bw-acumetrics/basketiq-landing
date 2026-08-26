@@ -6,7 +6,9 @@ interface Props {
   shares: StoreShare[];
 }
 
-const { shares } = Astro.props;
+// A 0% rollup carries no information — hide the row rather than render "0%".
+const { shares: allShares } = Astro.props;
+const shares = allShares.filter((s) => s.share_pct > 0);
 const labels: Record<string, string> = {
   supermarkets: 'Supermarkets',
   wholesalers: 'Wholesalers',

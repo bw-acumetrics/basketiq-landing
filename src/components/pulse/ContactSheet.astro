@@ -58,15 +58,9 @@
 </div>
 
 <script>
-  function mpGetHash() {
-    try {
-      var h = sessionStorage.getItem('mp_session_hash');
-      if (h) return h;
-      h = crypto.randomUUID();
-      sessionStorage.setItem('mp_session_hash', h);
-      return h;
-    } catch(e) { return crypto.randomUUID(); }
-  }
+  // The contact POST, the API base and the session hash all live in pulse.ts —
+  // this sheet is the north-star lead path and must not carry its own copy.
+  import { postContact } from '../../lib/pulse';
 
   var overlay = document.getElementById('contact-overlay');
   var form = document.getElementById('contact-form');
@@ -78,7 +72,7 @@
   var submitBtn = document.getElementById('contact-submit');
   var honeypot = document.getElementById('contact-website');
 
-  function openContact(insightType, slug, lookbackDays) {
+  function openContact(insightType, slug) {
     document.getElementById('contact-insight-type').value = insightType;
     document.getElementById('contact-slug').value = slug;
     lookbackRow.classList.toggle('hidden', insightType !== 'history_unlock');
@@ -103,8 +97,7 @@
     // Falls back to the closed set's catch-all — 'general' is not a valid insight_type.
     var insightType = target.dataset.insightType || 'brand_watch';
     var slug = target.dataset.slug || '';
-    var lookback = target.dataset.lookbackDays;
-    openContact(insightType, slug, lookback);
+    openContact(insightType, slug);
   });
 
   form.addEventListener('submit', async function(e) {
@@ -116,23 +109,17 @@
 
     var insightType = document.getElementById('contact-insight-type').value;
     var slug = document.getElementById('contact-slug').value;
-    var contactDetail = detailInput.value;
-    var body = {
-      insight_type: insightType,
-      contact_detail: contactDetail.trim().substring(0, 200),
-      slug: slug,
-      session_hash: mpGetHash(),
-      website: honeypot ? honeypot.value : ''
-    };
-    if (insightType === 'history_unlock') {
-      body.desired_lookback_days = parseInt(document.getElementById('contact-lookback').value, 10);
-    }
+    var lookbackDays = insightType === 'history_unlock'
+      ? parseInt(document.getElementById('contact-lookback').value, 10)
+      : undefined;
     try {
-      var res = await fetch('https://api.basketiq.co.bw/v1/public/pulse/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      var res = await postContact(
+        insightType,
+        detailInput.value,
+        slug,
+        lookbackDays,
+        honeypot ? honeypot.value : ''
+      );
       if (res.ok && res.status === 202) {
         successEl.classList.remove('hidden');
         form.classList.add('hidden');

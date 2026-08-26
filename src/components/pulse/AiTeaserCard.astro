@@ -20,20 +20,22 @@ if (teaser.avg_trip_spend !== null) {
   freeRows.push(parts.join(''));
 }
 
+// A count of 0 is a real 0, not a null — "identified 0 competing brands" is not a
+// lead magnet, so zero-count rows hide exactly like null ones.
 const lockedRows: { text: string; insightType: string }[] = [];
-if (teaser.bought_together_count !== null) {
+if (teaser.bought_together_count !== null && teaser.bought_together_count > 0) {
   lockedRows.push({
     text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="bought_together_count">${teaser.bought_together_count}</span> products usually bought together with this item`,
     insightType: 'bought_together',
   });
 }
-if (teaser.co_basket_brand_count !== null) {
+if (teaser.co_basket_brand_count !== null && teaser.co_basket_brand_count > 0) {
   lockedRows.push({
     text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="co_basket_brand_count">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
     insightType: 'co_basket_brands',
   });
 }
-if (teaser.competing_brand_count !== null) {
+if (teaser.competing_brand_count !== null && teaser.competing_brand_count > 0) {
   lockedRows.push({
     text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="competing_brand_count">${teaser.competing_brand_count}</span> competing brands in this category`,
     insightType: 'competing_brands',

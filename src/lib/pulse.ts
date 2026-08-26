@@ -324,7 +324,7 @@ export async function postNotifyMe(
 }
 
 /** Compose a branded WhatsApp share URL from verdict text + receipt count + category URL. */
-export function whatsappShareUrl(verdictText: string, receiptCount: number, categoryUrl: string): string {
+export function whatsappShareUrl(verdictText: string, receiptCount: number | string, categoryUrl: string): string {
   const text = `${verdictText}\nBased on ${receiptCount} till-verified receipts\n\nSee more: ${categoryUrl}`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }

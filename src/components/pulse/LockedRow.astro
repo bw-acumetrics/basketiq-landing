@@ -4,10 +4,9 @@ interface Props {
   text: string;
   insightType: string;
   slug: string;
-  lookbackDays?: number;
 }
 
-const { text, insightType, slug, lookbackDays } = Astro.props;
+const { text, insightType, slug } = Astro.props;
 ---
 
 <button
@@ -15,7 +14,6 @@ const { text, insightType, slug, lookbackDays } = Astro.props;
   class="lock-row flex items-center justify-between py-2 border-t border-outline-variant/30 w-full text-left hover:bg-surface-container-low/50 transition-colors px-1 rounded"
   data-insight-type={insightType}
   data-slug={slug}
-  data-lookback-days={lookbackDays}
 >
   <p class="text-sm text-on-surface flex-1" set:html={text}></p>
   <span class="material-symbols-outlined text-on-surface-variant text-lg ml-2">lock</span>

@@ -48,6 +48,9 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
     convenience_other: 'Convenience & other',
   };
   const BAR_OPACITIES = ['', 'opacity-80', 'opacity-60'];
+  // Mirrors the baked #not-found-main class list — the render branches swap the
+  // container class, so the not-found branches have to put it back.
+  const NOT_FOUND_CLASS = 'flex-1 flex flex-col items-center justify-center px-6 py-16 text-center';
 
   function sparklineHtml(trend: CategorySnapshot['trend']): string {
     const { segments, gaps } = buildSparkline(trend);
@@ -66,7 +69,8 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
     );
   }
 
-  function storeBarsHtml(shares: StoreShare[]): string {
+  function storeBarsHtml(allShares: StoreShare[]): string {
+    const shares = allShares.filter((s) => s.share_pct > 0);
     if (shares.length === 0) return '';
     return (
       '<section class="bg-white border border-outline-variant rounded-xl p-5"><h3 class="font-headline text-on-surface text-lg font-bold mb-4">Where it\'s bought</h3><div class="space-y-3">' +
@@ -87,20 +91,21 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
   }
 
   function teaserHtml(teaser: TeaserFields, slug: string, receiptCount: number): string {
+    // Zero-count rows hide like null ones — a locked "identified 0 …" row is noise.
     const locked: { text: string; insightType: string }[] = [];
-    if (teaser.bought_together_count !== null) {
+    if (teaser.bought_together_count !== null && teaser.bought_together_count > 0) {
       locked.push({
         text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="bought_together_count">${teaser.bought_together_count}</span> products usually bought together with this item`,
         insightType: 'bought_together',
       });
     }
-    if (teaser.co_basket_brand_count !== null) {
+    if (teaser.co_basket_brand_count !== null && teaser.co_basket_brand_count > 0) {
       locked.push({
         text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="co_basket_brand_count">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
         insightType: 'co_basket_brands',
       });
     }
-    if (teaser.competing_brand_count !== null) {
+    if (teaser.competing_brand_count !== null && teaser.competing_brand_count > 0) {
       locked.push({
         text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="competing_brand_count">${teaser.competing_brand_count}</span> competing brands in this category`,
         insightType: 'competing_brands',
@@ -147,13 +152,16 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
   }
 
   function renderSnapshot(main: HTMLElement, data: CategorySnapshot, slug: string) {
+    // The not-found layout centres and shrink-wraps its content — a rendered
+    // snapshot needs the baked category page's container instead ([slug].astro).
+    main.className = 'flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24';
     const label = escapeHtml(data.display_label);
     const pctChangeHtml =
       data.pct_change_fraction !== null
         ? '<div class="inline-flex items-center gap-1 bg-primary-fixed/20 text-primary px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">' +
           (data.pct_change_fraction >= 0 ? 'trending_up' : 'trending_down') +
           `</span> <span data-pulse-field="pct_change_fraction">${formatPctChange(data.pct_change_fraction)}</span> vs last month</div>`
-        : '<div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">trending_flat</span> no trend</div>';
+        : '<div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">trending_flat</span> <span data-pulse-field="pct_change_fraction">no trend</span></div>';
 
     const range = data.p90_price - data.p10_price || 1;
     const medianLeft = ((data.median_price - data.p10_price) / range) * 100;
@@ -187,6 +195,8 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
   }
 
   function renderLimited(main: HTMLElement, data: CategorySnapshot, slug: string) {
+    // Small-n markup carries its own max-width wrapper — main just needs to grow.
+    main.className = 'flex-1 w-full';
     const required = data.receipts_required || 30;
     const pct = Math.round((data.receipt_count / required) * 100);
     const label = escapeHtml(data.display_label);
@@ -284,6 +294,7 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
     try {
       const res = await fetch(`${API_BASE}/v1/public/pulse/categories/${encodeURIComponent(slug)}`);
       if (res.status === 404) {
+        main.className = NOT_FOUND_CLASS;
         main.innerHTML =
           '<div class="flex flex-col items-center justify-center px-6 py-16 text-center"><span class="material-symbols-outlined text-5xl text-outline-variant mb-4">category</span>' +
           '<h1 class="font-headline text-2xl font-bold text-on-surface mb-2">Category not found</h1>' +
@@ -301,6 +312,7 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
         renderLimited(main, data, slug);
       }
     } catch {
+      main.className = NOT_FOUND_CLASS;
       main.innerHTML = '<div class="text-center py-16 text-sm text-error">Something went wrong. Please try again.</div>';
     }
   })();
