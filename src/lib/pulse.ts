@@ -354,6 +354,22 @@ export function refreshLiveFields(data: CategorySnapshot): void {
     }
   });
 
+  // The trend badge's icon, suffix and colour are part of the live field: a
+  // refreshed null must not stay under an up-arrow reading "no trend vs last month".
+  const hasTrend = data.pct_change_fraction !== null;
+  document.querySelectorAll('[data-pulse-trend-icon]').forEach((el) => {
+    el.textContent = !hasTrend ? 'trending_flat' : data.pct_change_fraction! >= 0 ? 'trending_up' : 'trending_down';
+  });
+  document.querySelectorAll('[data-pulse-trend-suffix]').forEach((el) => {
+    el.classList.toggle('hidden', !hasTrend);
+  });
+  document.querySelectorAll('[data-pulse-trend-badge]').forEach((el) => {
+    el.classList.toggle('bg-primary-fixed/20', hasTrend);
+    el.classList.toggle('text-primary', hasTrend);
+    el.classList.toggle('bg-surface-container', !hasTrend);
+    el.classList.toggle('text-on-surface-variant', !hasTrend);
+  });
+
   // Median marker on the P10–P90 range bar moves with the refreshed prices.
   const markerRange = data.p90_price - data.p10_price || 1;
   document.querySelectorAll('[data-pulse-range-marker]').forEach((el) => {

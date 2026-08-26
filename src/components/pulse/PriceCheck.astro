@@ -159,6 +159,11 @@ const { slug } = Astro.props;
       const quantized = Math.round(enteredPrice * 100) / 100;
       renderVerdict(await postPriceCheck(slug, quantized, honeypot?.value ?? ''), quantized);
     } catch {
+      // renderVerdict hides this card — and errorEl lives inside it — before it can
+      // throw, so restore the snapshot state or the retry message renders invisible.
+      card?.classList.remove('hidden');
+      document.getElementById('snapshot-content')?.classList.remove('hidden');
+      document.getElementById('verdict-container')?.classList.add('hidden');
       errorEl.textContent = 'Something went wrong. Please try again.';
       errorEl.classList.remove('hidden');
     } finally {

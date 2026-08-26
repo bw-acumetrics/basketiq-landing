@@ -73,17 +73,27 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       <section class="bg-white border border-outline-variant rounded-xl p-5 grid grid-cols-2 gap-4">
         <div class="flex flex-col justify-between border-r border-outline-variant/30 pr-4">
           <div>
-            {data.pct_change_fraction !== null ? (
-              <div class="inline-flex items-center gap-1 bg-primary-fixed/20 text-primary px-2 py-1 rounded text-xs font-bold mb-4">
-                <span class="material-symbols-outlined text-sm">{data.pct_change_fraction >= 0 ? 'trending_up' : 'trending_down'}</span>
-                <span data-pulse-field="pct_change_fraction">{formatPctChange(data.pct_change_fraction)}</span> vs last month
-              </div>
-            ) : (
-              <div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4">
-                <span class="material-symbols-outlined text-sm">trending_flat</span>
-                <span data-pulse-field="pct_change_fraction">no trend</span>
-              </div>
-            )}
+            <!-- One badge, not two branches: the mount-refresh has to be able to
+                 swap chrome as well as value, or a live null lands "no trend vs
+                 last month" under an up-arrow (and vice-versa). -->
+            <div
+              data-pulse-trend-badge
+              class={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold mb-4 ${
+                data.pct_change_fraction !== null
+                  ? 'bg-primary-fixed/20 text-primary'
+                  : 'bg-surface-container text-on-surface-variant'
+              }`}
+            >
+              <span class="material-symbols-outlined text-sm" data-pulse-trend-icon>
+                {data.pct_change_fraction === null
+                  ? 'trending_flat'
+                  : data.pct_change_fraction >= 0
+                    ? 'trending_up'
+                    : 'trending_down'}
+              </span>
+              <span data-pulse-field="pct_change_fraction">{formatPctChange(data.pct_change_fraction)}</span>
+              <span data-pulse-trend-suffix class={data.pct_change_fraction === null ? 'hidden' : ''}>vs last month</span>
+            </div>
           </div>
           <Sparkline trend={data.trend} />
           <p class="text-[10px] text-on-surface-variant mt-2">30-day sparkline</p>
@@ -133,7 +143,11 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
   if (slug) {
     (async () => {
       try {
-        refreshLiveFields(await fetchSnapshot(slug));
+        const snapshot = await fetchSnapshot(slug);
+        // A refresh landing after a verdict is drawn would rewrite the p10/p90
+        // labels without re-running the marker math — leave the verdict alone.
+        const verdict = document.getElementById('verdict-container');
+        if (!verdict || verdict.classList.contains('hidden')) refreshLiveFields(snapshot);
       } catch {
         // Refresh failure leaves baked values in place silently.
       }
