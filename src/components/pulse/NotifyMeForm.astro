@@ -1,0 +1,89 @@
+---
+// Notify-me form — posts slug + phone_number, surfaces 422 inline. One message promise.
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<section id="notify-card" data-slug={slug} class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-4">
+  <h2 class="font-headline text-xl font-semibold text-on-surface leading-tight">Be first to know when this category goes live.</h2>
+  <form id="notify-form" class="flex flex-col gap-3">
+    <input type="text" name="website" id="notify-website" class="hidden" tabindex="-1" autocomplete="off" />
+    <div class="relative">
+      <label for="notify-phone" class="sr-only">WhatsApp number</label>
+      <input
+        id="notify-phone"
+        type="tel"
+        required
+        class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+        placeholder="WhatsApp number"
+      />
+    </div>
+    <p id="notify-error" class="hidden text-sm text-error bg-error-container/50 rounded-lg px-3 py-2">Please enter a valid WhatsApp number.</p>
+    <p id="notify-success" class="hidden text-sm text-primary border border-primary-container/30 bg-primary-fixed/10 rounded-lg px-3 py-2 text-center">We'll WhatsApp you once the snapshot is ready. Nothing else.</p>
+    <button
+      type="submit"
+      id="notify-submit"
+      class="w-full bg-primary text-primary-fixed font-headline font-bold text-sm py-3 px-4 rounded-lg flex justify-center items-center gap-1 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
+    >
+      <span class="material-symbols-outlined text-lg">notifications_active</span>
+      Notify me on WhatsApp
+    </button>
+  </form>
+  <p class="text-xs text-on-surface-variant text-center">One message when the snapshot is ready. Nothing else.</p>
+</section>
+
+<script>
+  // Bundled module script (not `define:vars`) so the POST shares pulse.ts.
+  import { postNotifyMe } from '../../lib/pulse';
+
+  const slug = document.getElementById('notify-card')?.dataset.slug ?? '';
+  const form = document.getElementById('notify-form');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('notify-phone') as HTMLInputElement | null;
+    const honeypot = document.getElementById('notify-website') as HTMLInputElement | null;
+    const errorEl = document.getElementById('notify-error');
+    const successEl = document.getElementById('notify-success');
+    const btn = document.getElementById('notify-submit') as HTMLButtonElement | null;
+    if (!input || !errorEl || !successEl || !btn) return;
+    const phone = input.value.trim();
+
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+
+    if (!phone) {
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    const reset = (message: string) => {
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Notify me on WhatsApp';
+    };
+
+    try {
+      const res = await postNotifyMe(slug, phone, honeypot?.value ?? '');
+      if (res.status === 202) {
+        successEl.classList.remove('hidden');
+        btn.textContent = 'Done';
+        const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+        if (umami) umami.track('notify_me', { slug });
+      } else if (res.status === 422) {
+        reset('Please enter a valid WhatsApp number.');
+      } else {
+        reset('Something went wrong. Please try again.');
+      }
+    } catch {
+      reset('Something went wrong. Please try again.');
+    }
+  });
+</script>

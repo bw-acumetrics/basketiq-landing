@@ -1,0 +1,43 @@
+---
+// Proportional store-type share bars. Labels owned by frontend.
+import type { StoreShare } from '../../lib/pulse';
+
+interface Props {
+  shares: StoreShare[];
+}
+
+// A 0% rollup carries no information — hide the row rather than render "0%".
+const { shares: allShares } = Astro.props;
+const shares = allShares.filter((s) => s.share_pct > 0);
+const labels: Record<string, string> = {
+  supermarkets: 'Supermarkets',
+  wholesalers: 'Wholesalers',
+  convenience_other: 'Convenience & other',
+};
+// Keyed off the rollup, not the post-filter index — dropping a 0% row must not
+// promote the rows below it up the ramp.
+const opacities: Record<string, string> = {
+  supermarkets: '',
+  wholesalers: 'opacity-80',
+  convenience_other: 'opacity-60',
+};
+---
+
+{shares.length > 0 && (
+  <section class="bg-white border border-outline-variant rounded-xl p-5">
+    <h3 class="font-headline text-on-surface text-lg font-bold mb-4">Where it's bought</h3>
+    <div class="space-y-3">
+      {shares.map((s) => (
+        <div data-pulse-share={s.store_rollup}>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-on-surface font-medium">{labels[s.store_rollup] ?? s.store_rollup}</span>
+            <span class="font-bold text-on-surface" data-pulse-share-pct>{Math.round(s.share_pct)}%</span>
+          </div>
+          <div class="h-2 w-full bg-surface rounded-sm border border-outline-variant/20">
+            <div class={`h-full bg-primary-container rounded-sm ${opacities[s.store_rollup] ?? ''}`} style={`width: ${s.share_pct}%`} data-pulse-share-bar></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

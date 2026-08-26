@@ -1,0 +1,23 @@
+---
+// 30-point sparkline — inline SVG. Null values render as gaps; x-axis preserved.
+// Geometry comes from buildSparkline() so the D1c redraw matches the baked line.
+import { buildSparkline, type TrendPoint } from '../../lib/pulse';
+
+interface Props {
+  trend: TrendPoint[];
+  height?: number;
+}
+
+const { trend, height = 48 } = Astro.props;
+const { segments, gaps } = buildSparkline(trend, height);
+---
+
+<svg viewBox={`0 0 200 ${height}`} class="w-full h-12" preserveAspectRatio="none" aria-label="30-day price sparkline" data-pulse-sparkline>
+  {segments.map((d) => (
+    <path d={d} fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  ))}
+  <!-- Null markers — small gaps -->
+  {gaps.map((g) => (
+    <circle cx={g.cx} cy={g.cy} r="1.5" fill="none" stroke="#c1c7cb" stroke-width="1" />
+  ))}
+</svg>

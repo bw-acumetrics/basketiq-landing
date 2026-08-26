@@ -1,0 +1,319 @@
+---
+// 404 page — client-side resolver for /pulse/<slug> paths with no pre-generated page.
+// Calls GET /categories/{slug} and renders full snapshot, limited state, or not-found.
+// Non-/pulse/ paths get the plain site not-found content.
+// Served with HTTP 404; acceptable — audience arrives by shared link.
+import Pulse from '../layouts/Pulse.astro';
+import PulseTopBar from '../components/pulse/PulseTopBar.astro';
+import PulseFooter from '../components/pulse/PulseFooter.astro';
+import ContactSheet from '../components/pulse/ContactSheet.astro';
+---
+
+<Pulse title="Not Found — BasketIQ">
+  <PulseTopBar />
+
+  <!-- Fallback content: plain not-found. Client script replaces for /pulse/ paths. -->
+  <main id="not-found-main" class="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+    <span class="material-symbols-outlined text-5xl text-outline-variant mb-4">search_off</span>
+    <h1 class="font-headline text-2xl font-bold text-on-surface mb-2">Page not found</h1>
+    <p class="text-sm text-on-surface-variant mb-6">The page you&rsquo;re looking for doesn&rsquo;t exist.</p>
+    <a href="/" class="text-sm font-semibold text-primary hover:underline">Back to BasketIQ</a>
+  </main>
+
+  <PulseFooter />
+  <ContactSheet />
+</Pulse>
+
+
+<script>
+  // Bundled module script so the resolver shares pulse.ts: the string-price
+  // normalizers, the single ×100 site, and the sparkline geometry builder.
+  import {
+    API_BASE,
+    buildSparkline,
+    escapeHtml,
+    formatPctChange,
+    formatPula,
+    normalizeSnapshot,
+    postLookup,
+    postNotifyMe,
+    type CategorySnapshot,
+    type StoreShare,
+    type TeaserFields,
+  } from '../lib/pulse';
+
+  const STORE_LABELS: Record<string, string> = {
+    supermarkets: 'Supermarkets',
+    wholesalers: 'Wholesalers',
+    convenience_other: 'Convenience & other',
+  };
+  const BAR_OPACITIES = ['', 'opacity-80', 'opacity-60'];
+  // Mirrors the baked #not-found-main class list — the render branches swap the
+  // container class, so the not-found branches have to put it back.
+  const NOT_FOUND_CLASS = 'flex-1 flex flex-col items-center justify-center px-6 py-16 text-center';
+
+  function sparklineHtml(trend: CategorySnapshot['trend']): string {
+    const { segments, gaps } = buildSparkline(trend);
+    return (
+      '<svg viewBox="0 0 200 48" class="w-full h-12" preserveAspectRatio="none" aria-label="30-day price sparkline" data-pulse-sparkline>' +
+      segments
+        .map(
+          (d) =>
+            `<path d="${d}" fill="none" stroke="#00a17a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        )
+        .join('') +
+      gaps
+        .map((g) => `<circle cx="${g.cx}" cy="${g.cy}" r="1.5" fill="none" stroke="#c1c7cb" stroke-width="1"/>`)
+        .join('') +
+      '</svg>'
+    );
+  }
+
+  function storeBarsHtml(allShares: StoreShare[]): string {
+    const shares = allShares.filter((s) => s.share_pct > 0);
+    if (shares.length === 0) return '';
+    return (
+      '<section class="bg-white border border-outline-variant rounded-xl p-5"><h3 class="font-headline text-on-surface text-lg font-bold mb-4">Where it\'s bought</h3><div class="space-y-3">' +
+      shares
+        .map((s, i) => {
+          const label = STORE_LABELS[s.store_rollup] ?? escapeHtml(s.store_rollup);
+          return (
+            `<div data-pulse-share="${escapeHtml(s.store_rollup)}"><div class="flex justify-between text-sm mb-1">` +
+            `<span class="text-on-surface font-medium">${label}</span>` +
+            `<span class="font-bold text-on-surface" data-pulse-share-pct>${Math.round(s.share_pct)}%</span></div>` +
+            '<div class="h-2 w-full bg-surface rounded-sm border border-outline-variant/20">' +
+            `<div class="h-full bg-primary-container rounded-sm ${BAR_OPACITIES[i] ?? ''}" style="width: ${s.share_pct}%" data-pulse-share-bar></div></div></div>`
+          );
+        })
+        .join('') +
+      '</div></section>'
+    );
+  }
+
+  function teaserHtml(teaser: TeaserFields, slug: string, receiptCount: number): string {
+    // Zero-count rows hide like null ones — a locked "identified 0 …" row is noise.
+    const locked: { text: string; insightType: string }[] = [];
+    if (teaser.bought_together_count !== null && teaser.bought_together_count > 0) {
+      locked.push({
+        text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="bought_together_count">${teaser.bought_together_count}</span> products usually bought together with this item`,
+        insightType: 'bought_together',
+      });
+    }
+    if (teaser.co_basket_brand_count !== null && teaser.co_basket_brand_count > 0) {
+      locked.push({
+        text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="co_basket_brand_count">${teaser.co_basket_brand_count}</span> brands shoppers also buy in the same basket`,
+        insightType: 'co_basket_brands',
+      });
+    }
+    if (teaser.competing_brand_count !== null && teaser.competing_brand_count > 0) {
+      locked.push({
+        text: `Our AI identified <span class="font-headline font-bold text-primary-container" data-pulse-teaser="competing_brand_count">${teaser.competing_brand_count}</span> competing brands in this category`,
+        insightType: 'competing_brands',
+      });
+    }
+    const hasFree = teaser.avg_trip_spend !== null;
+    if (!hasFree && locked.length === 0) return '';
+
+    let freeHtml = '';
+    if (hasFree) {
+      let parts = `Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend as number)}</span> on average per trip`;
+      if (teaser.trip_basket_count !== null) {
+        parts += `, in baskets of <span class="font-headline font-bold text-primary-container" data-pulse-teaser="trip_basket_count">${teaser.trip_basket_count}</span> items`;
+      }
+      freeHtml =
+        `<div class="flex items-center justify-between py-2"><p class="text-sm text-on-surface flex-1">${parts}</p>` +
+        '<span class="bg-primary-fixed/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded ml-2 whitespace-nowrap">FREE INSIGHT</span></div>';
+    }
+
+    let lockedHtml = '';
+    if (locked.length > 0) {
+      lockedHtml =
+        (hasFree ? '<div class="border-t border-outline-variant/30"></div>' : '') +
+        '<p class="text-xs text-on-surface-variant pt-1">Our AI found more insights like this:</p>' +
+        locked
+          .map(
+            (r) =>
+              `<button type="button" class="lock-row flex items-center justify-between py-2 border-t border-outline-variant/30 w-full text-left hover:bg-surface-container-low/50 transition-colors px-1 rounded" data-insight-type="${r.insightType}" data-slug="${escapeHtml(slug)}"><p class="text-sm text-on-surface flex-1">${r.text}</p><span class="material-symbols-outlined text-on-surface-variant text-lg ml-2">lock</span></button>`,
+          )
+          .join('');
+    }
+
+    return (
+      '<section class="bg-white border border-outline-variant border-l-[3px] border-l-primary-container rounded-xl p-5 space-y-3">' +
+      '<div class="flex justify-between items-center"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary-container text-sm">auto_awesome</span>' +
+      '<span class="text-xs font-bold uppercase tracking-wider text-primary-container">BASKETIQ AI</span></div>' +
+      `<span class="bg-primary-fixed/20 text-primary text-xs px-2 py-0.5 rounded-full">from <span data-pulse-field="receipt_count">${receiptCount.toLocaleString()}</span> baskets</span></div>` +
+      `<div class="space-y-0">${freeHtml}${lockedHtml}</div>` +
+      '<div class="space-y-2 pt-1"><button type="button" class="lock-row w-full bg-primary-container text-white font-headline font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity" ' +
+      // brand_watch, not "general" — insight_type is a closed set server-side.
+      `data-insight-type="brand_watch" data-slug="${escapeHtml(slug)}">Contact us — get the full breakdown</button>` +
+      '<p class="text-center text-xs text-on-surface-variant">Free consultation · WhatsApp or email</p></div></section>'
+    );
+  }
+
+  function renderSnapshot(main: HTMLElement, data: CategorySnapshot, slug: string) {
+    // The not-found layout centres and shrink-wraps its content — a rendered
+    // snapshot needs the baked category page's container instead ([slug].astro).
+    main.className = 'flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24';
+    const label = escapeHtml(data.display_label);
+    const pctChangeHtml =
+      data.pct_change_fraction !== null
+        ? '<div class="inline-flex items-center gap-1 bg-primary-fixed/20 text-primary px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">' +
+          (data.pct_change_fraction >= 0 ? 'trending_up' : 'trending_down') +
+          `</span> <span data-pulse-field="pct_change_fraction">${formatPctChange(data.pct_change_fraction)}</span> vs last month</div>`
+        : '<div class="inline-flex items-center gap-1 bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-bold mb-4"><span class="material-symbols-outlined text-sm">trending_flat</span> <span data-pulse-field="pct_change_fraction">no trend</span></div>';
+
+    const range = data.p90_price - data.p10_price || 1;
+    const medianLeft = ((data.median_price - data.p10_price) / range) * 100;
+
+    main.innerHTML =
+      `<div class="px-2 mb-6"><h2 class="font-headline text-on-surface text-3xl font-bold leading-tight mb-1">${label}</h2><p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p></div>` +
+      '<div id="snapshot-content" class="space-y-6">' +
+      '<section class="bg-white border border-outline-variant rounded-xl p-5"><p class="text-sm text-on-surface-variant font-medium mb-2">Typical price shoppers paid</p>' +
+      `<div class="font-headline text-on-surface text-5xl font-extrabold tracking-tighter mb-4" data-pulse-field="median_price">${formatPula(data.median_price)}</div>` +
+      '<div class="relative h-2 bg-surface rounded-full border border-outline-variant/50 mb-3">' +
+      `<div class="absolute h-4 w-1.5 bg-primary-container rounded-sm -translate-y-1/2" style="left: ${medianLeft}%" data-pulse-range-marker></div></div>` +
+      `<div class="flex justify-between text-xs text-on-surface-variant mb-3"><span data-pulse-field="p10_price">${formatPula(data.p10_price)}</span><span data-pulse-field="p90_price">${formatPula(data.p90_price)}</span></div>` +
+      `<p class="text-xs text-on-surface-variant border-t border-outline-variant/30 pt-3">Based on <span data-pulse-field="receipt_count">${data.receipt_count.toLocaleString()}</span> till-verified receipts</p></section>` +
+      '<section class="bg-white border border-outline-variant rounded-xl p-5 grid grid-cols-2 gap-4"><div class="flex flex-col justify-between border-r border-outline-variant/30 pr-4"><div>' +
+      pctChangeHtml +
+      '</div>' +
+      sparklineHtml(data.trend) +
+      '<p class="text-[10px] text-on-surface-variant mt-2">30-day sparkline</p></div>' +
+      '<div class="flex flex-col justify-center pl-2"><span class="material-symbols-outlined text-outline-variant text-2xl">lock</span>' +
+      '<h3 class="font-headline text-on-surface text-sm font-semibold leading-tight mt-2">Full 6-month price history</h3>' +
+      `<button type="button" class="lock-row text-sm font-medium text-primary-container hover:underline mt-1 text-left" data-insight-type="history_unlock" data-slug="${escapeHtml(slug)}">Contact us to unlock →</button></div></section>` +
+      storeBarsHtml(data.store_shares) +
+      teaserHtml(data.teaser, slug, data.receipt_count) +
+      '</div>';
+
+    // Lookup beacon — fire-and-forget, failure swallowed by design.
+    postLookup(slug, document.referrer);
+
+    const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+    if (umami) umami.track('category_view', { slug });
+  }
+
+  function renderLimited(main: HTMLElement, data: CategorySnapshot, slug: string) {
+    // Small-n markup carries its own max-width wrapper — main just needs to grow.
+    main.className = 'flex-1 w-full';
+    const required = data.receipts_required || 30;
+    const pct = Math.round((data.receipt_count / required) * 100);
+    const label = escapeHtml(data.display_label);
+    const fallback = data.fallback ?? null;
+
+    main.innerHTML =
+      '<div class="w-full max-w-md mx-auto px-4 py-8 flex flex-col gap-8">' +
+      `<section class="flex flex-col gap-1 px-2"><h1 class="font-headline text-3xl font-bold text-on-surface">${label}</h1><p class="text-sm text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-base">location_on</span>Botswana · formal grocery retail</p></section>` +
+      '<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-4 shadow-sm"><div class="flex flex-col gap-1">' +
+      '<h2 class="font-headline text-xl font-semibold text-on-surface">We\'re still building this picture.</h2>' +
+      `<p class="text-sm text-on-surface-variant">We have ${data.receipt_count} verified receipts for this category — we publish a snapshot at ${required}.</p></div>` +
+      `<div class="flex flex-col gap-1"><div class="w-full bg-surface-variant h-2 rounded overflow-hidden" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="bg-primary h-full" style="width: ${pct}%"></div></div>` +
+      `<span class="text-xs text-outline">${data.receipt_count} of ${required} receipts</span></div></article>` +
+      (fallback
+        ? '<article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm">' +
+          `<h3 class="text-xs text-on-surface-variant uppercase tracking-wider">Nearby category: ${escapeHtml(fallback.display_label)}</h3>` +
+          `<div><span class="font-headline text-2xl font-bold text-on-surface">${formatPula(fallback.median_price)} typical</span></div>` +
+          `<p class="text-sm text-outline">Based on ${fallback.receipt_count.toLocaleString()} till-verified receipts</p>` +
+          `<a href="/pulse/${encodeURIComponent(fallback.slug)}" class="text-sm font-semibold text-primary inline-flex items-center gap-1">View full snapshot <span class="material-symbols-outlined text-base">arrow_forward</span></a></article>`
+        : '') +
+      '<section class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col gap-4"><h2 class="font-headline text-xl font-semibold text-on-surface leading-tight">Be first to know when this category goes live.</h2>' +
+      '<form id="dyn-notify-form" class="flex flex-col gap-3"><input type="text" id="dyn-notify-website" class="hidden" tabindex="-1" autocomplete="off"/>' +
+      '<input id="dyn-notify-phone" type="tel" required class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-3 text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="WhatsApp number"/>' +
+      '<p id="dyn-notify-error" class="hidden text-sm text-error bg-error-container/50 rounded-lg px-3 py-2">Please enter a valid WhatsApp number.</p>' +
+      '<p id="dyn-notify-success" class="hidden text-sm text-primary border border-primary-container/30 bg-primary-fixed/10 rounded-lg px-3 py-2 text-center">We\'ll WhatsApp you once the snapshot is ready. Nothing else.</p>' +
+      '<button type="submit" id="dyn-notify-submit" class="w-full bg-primary text-primary-fixed font-headline font-bold text-sm py-3 px-4 rounded-lg flex justify-center items-center gap-1">Notify me on WhatsApp</button></form>' +
+      '<p class="text-xs text-on-surface-variant text-center">One message when the snapshot is ready. Nothing else.</p></section>' +
+      '<div class="flex justify-center pb-8"><a href="/pulse" class="text-sm font-semibold text-primary inline-flex items-center gap-1">Browse categories with live data <span class="material-symbols-outlined text-base">arrow_forward</span></a></div>' +
+      '</div>';
+
+    wireNotifyMe(slug);
+  }
+
+  function wireNotifyMe(slug: string) {
+    const form = document.getElementById('dyn-notify-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const phoneInput = document.getElementById('dyn-notify-phone') as HTMLInputElement | null;
+      const honeypot = document.getElementById('dyn-notify-website') as HTMLInputElement | null;
+      const errEl = document.getElementById('dyn-notify-error');
+      const successEl = document.getElementById('dyn-notify-success');
+      const submitBtn = document.getElementById('dyn-notify-submit') as HTMLButtonElement | null;
+      if (!phoneInput || !errEl || !successEl || !submitBtn) return;
+
+      const phone = phoneInput.value.trim();
+      errEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+      if (!phone) {
+        errEl.classList.remove('hidden');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+
+      const reset = (message: string) => {
+        errEl.textContent = message;
+        errEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Notify me on WhatsApp';
+      };
+
+      try {
+        const res = await postNotifyMe(slug, phone, honeypot?.value ?? '');
+        if (res.status === 202) {
+          successEl.classList.remove('hidden');
+          submitBtn.textContent = 'Done';
+          const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+          if (umami) umami.track('notify_me', { slug });
+        } else if (res.status === 422) {
+          reset('Please enter a valid WhatsApp number.');
+        } else {
+          reset('Something went wrong. Please try again.');
+        }
+      } catch {
+        reset('Something went wrong. Please try again.');
+      }
+    });
+  }
+
+  (async () => {
+    const path = window.location.pathname;
+    if (!path.startsWith('/pulse/')) return; // Non-/pulse/ path — plain 404 already rendered.
+
+    const slug = path.replace(/^\/pulse\//, '').replace(/\/$/, '');
+    if (!slug) {
+      window.location.replace('/pulse');
+      return;
+    }
+
+    const main = document.getElementById('not-found-main');
+    if (!main) return;
+    main.innerHTML = '<div class="text-center py-20"><p class="text-sm text-on-surface-variant">Loading…</p></div>';
+
+    try {
+      const res = await fetch(`${API_BASE}/v1/public/pulse/categories/${encodeURIComponent(slug)}`);
+      if (res.status === 404) {
+        main.className = NOT_FOUND_CLASS;
+        main.innerHTML =
+          '<div class="flex flex-col items-center justify-center px-6 py-16 text-center"><span class="material-symbols-outlined text-5xl text-outline-variant mb-4">category</span>' +
+          '<h1 class="font-headline text-2xl font-bold text-on-surface mb-2">Category not found</h1>' +
+          `<p class="text-sm text-on-surface-variant mb-6">We don&rsquo;t track &ldquo;${escapeHtml(slug.replace(/-/g, ' '))}&rdquo; yet.</p>` +
+          '<a href="/pulse" class="text-sm font-semibold text-primary hover:underline">Browse live categories</a></div>';
+        return;
+      }
+      if (!res.ok) throw new Error(`Snapshot fetch failed: ${res.status}`);
+
+      // Prices, fractions and shares all arrive as JSON strings — normalize first.
+      const data = normalizeSnapshot(await res.json());
+      if (data.published) {
+        renderSnapshot(main, data, slug);
+      } else {
+        renderLimited(main, data, slug);
+      }
+    } catch {
+      main.className = NOT_FOUND_CLASS;
+      main.innerHTML = '<div class="text-center py-16 text-sm text-error">Something went wrong. Please try again.</div>';
+    }
+  })();
+</script>

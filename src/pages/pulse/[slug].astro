@@ -1,0 +1,162 @@
+---
+// /pulse/<slug> — per-category snapshot with OG tags, price panel, sparkline, store bars,
+// AI teaser, Price Position Check, and D1c mount-refresh.
+import type { GetStaticPaths } from 'astro';
+import Pulse from '../../layouts/Pulse.astro';
+import PulseTopBar from '../../components/pulse/PulseTopBar.astro';
+import PulseFooter from '../../components/pulse/PulseFooter.astro';
+import PricePanel from '../../components/pulse/PricePanel.astro';
+import Sparkline from '../../components/pulse/Sparkline.astro';
+import StoreShareBars from '../../components/pulse/StoreShareBars.astro';
+import AiTeaserCard from '../../components/pulse/AiTeaserCard.astro';
+import ContactSheet from '../../components/pulse/ContactSheet.astro';
+import PriceCheck from '../../components/pulse/PriceCheck.astro';
+import VerdictView from '../../components/pulse/VerdictView.astro';
+import {
+  fetchCategories,
+  fetchSnapshot,
+  formatPula,
+  formatPctChange,
+  type CategorySnapshot,
+} from '../../lib/pulse';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const categories = await fetchCategories();
+
+  // D2 regression tripwire — if the cap regressed we won't silently drop ~40 pages.
+  if (categories.length <= 60) {
+    throw new Error(
+      `Market Pulse build failed: only ${categories.length} categories returned (cap may be at 60, not 250). Refusing to produce a truncated site.`,
+    );
+  }
+
+  return categories
+    .filter((c) => {
+      // Exclude slugs containing a dot — no current categories have them, but they break CF Pages routing.
+      if (c.slug.includes('.')) {
+        console.warn(`Market Pulse: excluding slug "${c.slug}" — contains '.' (breaks CF Pages static routing)`);
+        return false;
+      }
+      return true;
+    })
+    .map((c) => ({
+      params: { slug: c.slug },
+    }));
+};
+
+const { slug } = Astro.params as { slug: string };
+
+// Re-fetch at build time for the page data
+const data: CategorySnapshot = await fetchSnapshot(slug);
+
+const ogTitle = `${data.display_label} — Market Pulse | BasketIQ`;
+const ogDescription = `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`;
+const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
+---
+
+<Pulse title={ogTitle} description={ogDescription} ogUrl={canonicalUrl}>
+  <PulseTopBar />
+
+  <main id="pulse-category" data-slug={slug} class="flex-1 px-4 py-6 space-y-6 max-w-lg mx-auto w-full pb-24">
+    <!-- Category Header -->
+    <div class="px-2">
+      <h2 class="font-headline text-on-surface text-3xl font-bold leading-tight mb-1">{data.display_label}</h2>
+      <p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p>
+    </div>
+
+    <!-- Snapshot content — hidden when verdict is shown -->
+    <div id="snapshot-content" class="space-y-6">
+      <!-- Price Panel -->
+      <PricePanel snapshot={data} />
+
+      <!-- Trend card: sparkline + locked history row -->
+      <section class="bg-white border border-outline-variant rounded-xl p-5 grid grid-cols-2 gap-4">
+        <div class="flex flex-col justify-between border-r border-outline-variant/30 pr-4">
+          <div>
+            <!-- One badge, not two branches: the mount-refresh has to be able to
+                 swap chrome as well as value, or a live null lands "no trend vs
+                 last month" under an up-arrow (and vice-versa). -->
+            <div
+              data-pulse-trend-badge
+              class={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold mb-4 ${
+                data.pct_change_fraction !== null
+                  ? 'bg-primary-fixed/20 text-primary'
+                  : 'bg-surface-container text-on-surface-variant'
+              }`}
+            >
+              <span class="material-symbols-outlined text-sm" data-pulse-trend-icon>
+                {data.pct_change_fraction === null
+                  ? 'trending_flat'
+                  : data.pct_change_fraction >= 0
+                    ? 'trending_up'
+                    : 'trending_down'}
+              </span>
+              <span data-pulse-field="pct_change_fraction">{formatPctChange(data.pct_change_fraction)}</span>
+              <span data-pulse-trend-suffix class={data.pct_change_fraction === null ? 'hidden' : ''}>vs last month</span>
+            </div>
+          </div>
+          <Sparkline trend={data.trend} />
+          <p class="text-[10px] text-on-surface-variant mt-2">30-day sparkline</p>
+        </div>
+        <div class="flex flex-col justify-center pl-2">
+          <span class="material-symbols-outlined text-outline-variant text-2xl">lock</span>
+          <h3 class="font-headline text-on-surface text-sm font-semibold leading-tight mt-2">Full 6-month price history</h3>
+          <button
+            type="button"
+            class="lock-row text-sm font-medium text-primary-container hover:underline mt-1 text-left"
+            data-insight-type="history_unlock"
+            data-slug={slug}
+          >
+            Contact us to unlock &rarr;
+          </button>
+        </div>
+      </section>
+
+      <!-- Store Share Bars -->
+      <StoreShareBars shares={data.store_shares} />
+
+      <!-- AI Teaser Card -->
+      <AiTeaserCard teaser={data.teaser} slug={slug} receiptCount={data.receipt_count} />
+
+      <!-- Price Position Check — only on published, rendered at build time -->
+      {data.published && <PriceCheck slug={slug} />}
+    </div>
+
+    <!-- Verdict View — hidden initially, filled client-side after price check -->
+    <VerdictView p10Price={data.p10_price} p90Price={data.p90_price} />
+  </main>
+
+  <PulseFooter />
+
+  <!-- Contact Sheet (shared dialog) -->
+  <ContactSheet />
+</Pulse>
+
+
+<script>
+  // D1c mount-refresh + lookup beacon. A bundled module script (not `define:vars`)
+  // so it shares pulse.ts — the single ×100 site and the string-price normalizers.
+  import { fetchSnapshot, refreshLiveFields, postLookup } from '../../lib/pulse';
+
+  const slug = document.getElementById('pulse-category')?.dataset.slug ?? '';
+
+  if (slug) {
+    (async () => {
+      try {
+        const snapshot = await fetchSnapshot(slug);
+        // A refresh landing after a verdict is drawn would rewrite the p10/p90
+        // labels without re-running the marker math — leave the verdict alone.
+        const verdict = document.getElementById('verdict-container');
+        if (!verdict || verdict.classList.contains('hidden')) refreshLiveFields(snapshot);
+      } catch {
+        // Refresh failure leaves baked values in place silently.
+      }
+    })();
+
+    // Lookup beacon — fire-and-forget, failure swallowed by design.
+    postLookup(slug, document.referrer);
+
+    const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+    if (umami) umami.track('category_view', { slug });
+  }
+</script>

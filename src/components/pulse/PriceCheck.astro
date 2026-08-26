@@ -1,0 +1,174 @@
+---
+// Price Position Check input — rendered only on published snapshots.
+// Posts to POST /categories/{slug}/price-check and renders the verdict in-page.
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<section id="price-check-card" data-slug={slug} class="bg-white border border-outline-variant rounded-xl p-6">
+  <h3 class="font-headline text-on-surface text-xl font-bold mb-4">How does YOUR price compare?</h3>
+  <div class="space-y-4">
+    <div>
+      <label for="price-input" class="block text-xs text-on-surface-variant font-medium mb-1">Your selling price (P)</label>
+      <input
+        id="price-input"
+        type="number"
+        step="0.01"
+        min="0"
+        class="w-full border border-outline-variant rounded-lg px-4 py-3 text-on-surface font-headline font-semibold focus:ring-1 focus:ring-primary-container focus:border-primary-container transition-colors"
+        placeholder="0.00"
+      />
+    </div>
+    <input type="text" name="website" id="price-check-website" class="hidden" tabindex="-1" autocomplete="off" />
+    <button
+      id="price-check-btn"
+      type="button"
+      class="w-full bg-primary text-primary-fixed font-headline font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
+    >
+      Check my position
+    </button>
+    <p id="price-check-error" class="hidden text-center text-sm text-error"></p>
+    <p class="text-center text-xs text-on-surface-variant">Free · no sign-up · takes 10 seconds</p>
+  </div>
+</section>
+
+<script>
+  // Bundled module script (not `define:vars`) so the verdict shares pulse.ts:
+  // the string-price normalizers and the single ×100 site in formatPctChange.
+  import { formatPula, formatPctChange, formatDirection, postPriceCheck } from '../../lib/pulse';
+
+  const card = document.getElementById('price-check-card');
+  const slug = card?.dataset.slug ?? '';
+  const checkBtn = document.getElementById('price-check-btn') as HTMLButtonElement | null;
+  const input = document.getElementById('price-input') as HTMLInputElement | null;
+  const honeypot = document.getElementById('price-check-website') as HTMLInputElement | null;
+  const errorEl = document.getElementById('price-check-error');
+
+  // Verdict copy per direction — `at` is an exact-median hit, not a near-miss.
+  const ADVICE: Record<string, { icon: string; advice: string; shareLead: string }> = {
+    below: {
+      icon: 'trending_up',
+      advice: 'Room to hold price: shoppers are already paying more elsewhere.',
+      shareLead: 'Show your customers you price below market.',
+    },
+    above: {
+      icon: 'trending_down',
+      advice: 'You are priced above the market typical — worth checking your buying price or margin.',
+      shareLead: 'Show your customers where your price sits against the market.',
+    },
+    at: {
+      icon: 'trending_flat',
+      advice: 'You are priced right at the market typical.',
+      shareLead: 'Show your customers you price in line with the market.',
+    },
+  };
+
+  function textOf(id: string, fallback: number): number {
+    const el = document.getElementById(id);
+    const parsed = parseFloat((el?.textContent ?? '').replace(/[^0-9.]/g, ''));
+    return isNaN(parsed) ? fallback : parsed;
+  }
+
+  function renderVerdict(
+    result: { position_pct: number; direction: string; delta_fraction: number | null; median_price: number | null },
+    enteredPrice: number,
+  ) {
+    const snapshotContent = document.getElementById('snapshot-content');
+    const verdictContainer = document.getElementById('verdict-container');
+    if (!verdictContainer) return;
+    snapshotContent?.classList.add('hidden');
+    card?.classList.add('hidden');
+    verdictContainer.classList.remove('hidden');
+
+    // `at` is an exact-median hit and carries no percentage; a null delta_fraction
+    // means the server had no comparison to make — neither may read "no trend".
+    const direction = formatDirection(result.direction);
+    const showPct = result.direction !== 'at' && result.delta_fraction !== null;
+    const barePct = showPct ? formatPctChange(result.delta_fraction).replace(/^[+\u2212]/, '') + ' ' : '';
+    const verdictSentence = 'Your price is ' + barePct + direction + ' market typical';
+    const verdictTitle = document.getElementById('verdict-title');
+    if (verdictTitle) {
+      verdictTitle.innerHTML =
+        'Your price is <span class="text-primary-container">' + barePct + direction + '</span> market typical';
+    }
+
+    const posPctEl = document.getElementById('verdict-position-pct');
+    if (posPctEl) posPctEl.textContent = Math.round(result.position_pct) + '%';
+
+    // Advice and share lead are baked for the BELOW case — swap both off the
+    // three-way direction, or an ABOVE seller reads advice for the opposite case.
+    const advice = ADVICE[result.direction] ?? ADVICE.at;
+    const adviceEl = document.getElementById('verdict-advice');
+    if (adviceEl) adviceEl.textContent = advice.advice;
+    const adviceIcon = document.getElementById('verdict-advice-icon');
+    if (adviceIcon) adviceIcon.textContent = advice.icon;
+    const shareLead = document.getElementById('verdict-share-lead');
+    if (shareLead) shareLead.textContent = advice.shareLead;
+
+    const p10 = textOf('verdict-p10', 0);
+    const p90 = textOf('verdict-p90', 1);
+    const range = p90 - p10 || 1;
+
+    const userMarker = document.getElementById('verdict-user-marker');
+    if (userMarker) {
+      userMarker.style.left = Math.max(0, Math.min(100, ((enteredPrice - p10) / range) * 100)) + '%';
+    }
+    const userLabel = document.getElementById('verdict-you-price');
+    if (userLabel) userLabel.textContent = formatPula(enteredPrice);
+
+    // median_price is nullable on the contract — leave the marker where it is if absent.
+    const mdnText = document.getElementById('verdict-median-price');
+    if (result.median_price !== null) {
+      const mdnMarker = document.getElementById('verdict-median-marker');
+      if (mdnMarker) mdnMarker.style.left = ((result.median_price - p10) / range) * 100 + '%';
+      if (mdnText) mdnText.textContent = formatPula(result.median_price);
+    }
+
+    const rcEl = document.querySelector('[data-pulse-field="receipt_count"]');
+    const receiptCount = rcEl?.textContent ?? '0';
+    const receiptNote = document.getElementById('verdict-receipts');
+    if (receiptNote) receiptNote.textContent = 'Based on ' + receiptCount + ' till-verified receipts';
+
+    const shareBtn = document.getElementById('share-btn');
+    if (shareBtn) {
+      shareBtn.dataset.verdictText = verdictSentence;
+      shareBtn.dataset.receiptCount = receiptCount;
+      shareBtn.dataset.categoryUrl = window.location.origin + '/pulse/' + slug;
+    }
+
+    const umami = (window as unknown as { umami?: { track: (e: string, d?: unknown) => void } }).umami;
+    if (umami) umami.track('price_check_completed', { slug });
+  }
+
+  checkBtn?.addEventListener('click', async () => {
+    const enteredPrice = parseFloat(input?.value ?? '');
+    if (!errorEl) return;
+    if (isNaN(enteredPrice) || enteredPrice <= 0) {
+      errorEl.textContent = 'Please enter a valid price.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    errorEl.classList.add('hidden');
+    checkBtn.disabled = true;
+    checkBtn.textContent = 'Checking…';
+    try {
+      // Quantize to the 2dp scale the server stores at, so the echoed price matches.
+      const quantized = Math.round(enteredPrice * 100) / 100;
+      renderVerdict(await postPriceCheck(slug, quantized, honeypot?.value ?? ''), quantized);
+    } catch {
+      // renderVerdict hides this card — and errorEl lives inside it — before it can
+      // throw, so restore the snapshot state or the retry message renders invisible.
+      card?.classList.remove('hidden');
+      document.getElementById('snapshot-content')?.classList.remove('hidden');
+      document.getElementById('verdict-container')?.classList.add('hidden');
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      checkBtn.disabled = false;
+      checkBtn.textContent = 'Check my position';
+    }
+  });
+</script>

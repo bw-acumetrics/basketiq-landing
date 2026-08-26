@@ -1,0 +1,16 @@
+---
+// P10–P90 range bar with median marker. Used inside the price panel card.
+interface Props {
+  p10: number;
+  median: number;
+  p90: number;
+}
+
+const { p10, median, p90 } = Astro.props;
+const range = p90 - p10 || 1;
+const medPct = ((median - p10) / range) * 100;
+---
+
+<div class="relative h-2 bg-surface rounded-full border border-outline-variant/50 mb-3">
+  <div class="absolute h-4 w-1.5 bg-primary-container rounded-sm -translate-y-1/2" style={`left: ${medPct}%`} data-pulse-range-marker></div>
+</div>
