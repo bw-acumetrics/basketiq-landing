@@ -1,14 +1,18 @@
 ---
 // VerdictView — rendered in-page after price check. Hidden initially, shown on POST response.
-// Wholesaler-avg line DELETED per #520 D5 (no per-rollup price in v1 — basketiq#522).
+// Wholesale line restored per #10 now that basketiq#522 ships per-rollup prices.
+// It reads the wholesalers MEDIAN, not the avg the design named: the avg is
+// inflated by bulk multi-packs (chips 199.83 vs 32.49), so the copy says
+// "typically" to match the median vocabulary the rest of the page already uses.
 import { formatPula } from '../../lib/pulse';
 
 interface Props {
   p10Price: number;
   p90Price: number;
+  wholesalerPrice: number | null;
 }
 
-const { p10Price, p90Price } = Astro.props;
+const { p10Price, p90Price, wholesalerPrice } = Astro.props;
 ---
 
 <div id="verdict-container" class="hidden space-y-6">
@@ -52,9 +56,17 @@ const { p10Price, p90Price } = Astro.props;
   <!-- What This Means -->
   <section class="bg-white border border-outline-variant rounded-xl p-4 flex flex-col gap-3">
     <h2 class="text-xs font-semibold text-outline uppercase tracking-wider mb-1">What this means</h2>
-    <div class="flex gap-3 items-start">
+    <div class="flex gap-3 items-start border-b border-outline-variant pb-3">
       <span id="verdict-advice-icon" class="material-symbols-outlined text-primary-container text-xl mt-0.5" style="font-variation-settings: 'FILL' 1;">trending_up</span>
       <p id="verdict-advice" class="text-sm text-on-surface">Room to hold price: shoppers are already paying more elsewhere.</p>
+    </div>
+    <!-- Always emitted, toggled via `hidden` — a build-time-conditional row could
+         never be revealed by a refresh arriving with a newly non-null price. -->
+    <div id="verdict-wholesale" class={`flex gap-3 items-start pt-1 ${wholesalerPrice === null ? 'hidden' : ''}`}>
+      <span class="material-symbols-outlined text-outline text-xl mt-0.5" style="font-variation-settings: 'FILL' 1;">store</span>
+      <p id="verdict-wholesale-text" class="text-sm text-on-surface">
+        {wholesalerPrice === null ? '' : `Wholesalers typically ${formatPula(wholesalerPrice)} — check your supply cost margin.`}
+      </p>
     </div>
   </section>
 

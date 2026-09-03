@@ -18,6 +18,8 @@ export interface TrendPoint {
 export interface StoreShare {
   store_rollup: string; // supermarkets | wholesalers | convenience_other
   share_pct: number; // normalized from string
+  avg_price: number | null; // normalized from string|null
+  median_price: number | null;
 }
 
 export interface TeaserFields {
@@ -97,6 +99,8 @@ export function normalizeSnapshot(raw: Record<string, unknown>): CategorySnapsho
     ? raw.store_shares.map((s: Record<string, unknown>) => ({
         store_rollup: String(s.store_rollup ?? ''),
         share_pct: toNum(s.share_pct),
+        avg_price: toNullableNum(s.avg_price),
+        median_price: toNullableNum(s.median_price),
       }))
     : [];
 
@@ -378,6 +382,21 @@ export function refreshLiveFields(data: CategorySnapshot): void {
 
   // Store shares — percentage label and bar width per rollup.
   data.store_shares.forEach((share) => {
+    // Verdict wholesale line. Unlike the teaser/headline fields below, a null
+    // price HIDES this row rather than keeping the baked value: #10 requires the
+    // sentence to be absent (not "P 0.00") when there is no wholesale price.
+    // Runs before the share-bar guard so it survives a page without the bars.
+    if (share.store_rollup === 'wholesalers') {
+      const wholesaleRow = document.getElementById('verdict-wholesale');
+      if (wholesaleRow) {
+        wholesaleRow.classList.toggle('hidden', share.median_price === null);
+        const textEl = document.getElementById('verdict-wholesale-text');
+        if (textEl && share.median_price !== null) {
+          textEl.textContent = `Wholesalers typically ${formatPula(share.median_price)} — check your supply cost margin.`;
+        }
+      }
+    }
+
     const row = document.querySelector(`[data-pulse-share="${share.store_rollup}"]`);
     if (!row) return;
     const pctEl = row.querySelector('[data-pulse-share-pct]');

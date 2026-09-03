@@ -123,7 +123,11 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
     </div>
 
     <!-- Verdict View — hidden initially, filled client-side after price check -->
-    <VerdictView p10Price={data.p10_price} p90Price={data.p90_price} />
+    <VerdictView
+      p10Price={data.p10_price}
+      p90Price={data.p90_price}
+      wholesalerPrice={data.store_shares.find((s) => s.store_rollup === 'wholesalers')?.median_price ?? null}
+    />
   </main>
 
   <PulseFooter />
