@@ -14,6 +14,7 @@ import PriceCheck from '../../components/pulse/PriceCheck.astro';
 import VerdictView from '../../components/pulse/VerdictView.astro';
 import LimitedState from '../../components/pulse/LimitedState.astro';
 import {
+  API_BASE,
   fetchCategoryList,
   assertCategoryListComplete,
   fetchSnapshot,
@@ -34,19 +35,21 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const liveSlugs = categories.map((c) => c.slug);
 
   // Legacy slugs are unpublished today, so the categories endpoint no longer
-  // lists them. Probe each one: a category that has since been deleted must
-  // warn and drop out, not fail the whole (soon daily) rebuild.
+  // lists them. Probe each one: only a 404 (category deleted) drops the slug.
+  // Any other failure fails the build — the daily rebuild is a full Direct
+  // Upload, so silently skipping on a transient 5xx would delete live pages,
+  // while a failed build leaves the previous deployment serving and alerts.
   const legacyOnly = PULSE_LEGACY_SLUGS.filter((s) => !liveSlugs.includes(s));
   const legacyResolved = (
     await Promise.all(
       legacyOnly.map(async (slug) => {
-        try {
-          await fetchSnapshot(slug);
-          return slug;
-        } catch (e) {
-          console.warn(`Market Pulse: skipping legacy slug "${slug}" — ${e}`);
+        const res = await fetch(`${API_BASE}/v1/public/pulse/categories/${slug}`);
+        if (res.status === 404) {
+          console.warn(`Market Pulse: skipping legacy slug "${slug}" — 404 (category deleted)`);
           return null;
         }
+        if (!res.ok) throw new Error(`Market Pulse: legacy slug probe failed for "${slug}": ${res.status}`);
+        return slug;
       }),
     )
   ).filter((s): s is string => s !== null);
