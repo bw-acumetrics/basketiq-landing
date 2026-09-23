@@ -12,6 +12,7 @@ import AiTeaserCard from '../../components/pulse/AiTeaserCard.astro';
 import ContactSheet from '../../components/pulse/ContactSheet.astro';
 import PriceCheck from '../../components/pulse/PriceCheck.astro';
 import VerdictView from '../../components/pulse/VerdictView.astro';
+import LimitedState from '../../components/pulse/LimitedState.astro';
 import {
   fetchCategoryList,
   assertCategoryListComplete,
@@ -67,8 +68,13 @@ const { slug } = Astro.params as { slug: string };
 // Re-fetch at build time for the page data
 const data: CategorySnapshot = await fetchSnapshot(slug);
 
+const receiptsRequired = data.receipts_required ?? 30;
+
 const ogTitle = `${data.display_label} — Market Pulse | BasketIQ`;
-const ogDescription = `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`;
+// An unpublished category has no prices, so the share preview must not quote one.
+const ogDescription = data.published
+  ? `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`
+  : `${data.display_label} — collecting data: ${data.receipt_count} of ${receiptsRequired} till-verified receipts`;
 const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
 ---
 
@@ -82,6 +88,8 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       <p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p>
     </div>
 
+    {data.published && (
+    <Fragment>
     <!-- Snapshot content — hidden when verdict is shown -->
     <div id="snapshot-content" class="space-y-6">
       <!-- Price Panel -->
@@ -145,6 +153,18 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       p10Price={data.p10_price}
       p90Price={data.p90_price}
       wholesalerPrice={data.store_shares.find((s) => s.store_rollup === 'wholesalers')?.median_price ?? null}
+    />
+    </Fragment>
+    )}
+
+    <!-- Limited state — live on an unpublished category, baked collapsed on a
+         published one so the mount-refresh can swap to it (see applyLimitedState). -->
+    <LimitedState
+      slug={slug}
+      receiptCount={data.receipt_count}
+      receiptsRequired={receiptsRequired}
+      fallback={data.fallback ?? null}
+      hidden={data.published}
     />
   </main>
 
