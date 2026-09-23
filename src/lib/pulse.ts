@@ -230,13 +230,35 @@ export function getSessionHash(): string {
 
 // ---- GET helpers ----
 
-export async function fetchCategories(): Promise<CategoryListItem[]> {
+export interface CategoryList {
+  items: CategoryListItem[];
+  truncated: boolean;
+}
+
+/** Surfaces the API's own `truncated` flag so the build can refuse a clipped list. */
+export async function fetchCategoryList(): Promise<CategoryList> {
   const res = await fetch(`${API_BASE}/v1/public/pulse/categories`);
   if (!res.ok) throw new Error(`Categories fetch failed: ${res.status}`);
   const raw = await res.json();
-  // API wraps with { items: [...] }
+  // API wraps with { items: [...], truncated: bool }
   const items: unknown[] = raw.items ?? raw;
-  return items.map((i) => normalizeItem(i as Record<string, unknown>));
+  return {
+    items: items.map((i) => normalizeItem(i as Record<string, unknown>)),
+    truncated: Boolean(raw.truncated),
+  };
+}
+
+export async function fetchCategories(): Promise<CategoryListItem[]> {
+  return (await fetchCategoryList()).items;
+}
+
+/** Build-time tripwire. Lives here, not in the page, so it is unit-testable. */
+export function assertCategoryListComplete(list: CategoryList): void {
+  if (list.truncated || list.items.length === 0) {
+    throw new Error(
+      `Market Pulse build failed: categories response truncated=${list.truncated}, count=${list.items.length}. Refusing to produce a truncated site.`,
+    );
+  }
 }
 
 export async function fetchSnapshot(slug: string): Promise<CategorySnapshot> {
@@ -341,7 +363,65 @@ export function whatsappShareUrl(verdictText: string, receiptCount: number | str
  * sparkline, store shares and teaser counts. Labels, slugs and OG tags stay baked.
  * A null incoming value leaves the baked value in place rather than blanking it.
  */
+/**
+ * Swap a baked page to the limited state when the refresh says the category is
+ * unpublished. Writes with textContent — fallback.display_label is API text and
+ * never reaches innerHTML. Leaves the trend badge alone.
+ */
+export function applyLimitedState(data: CategorySnapshot): void {
+  document.getElementById('snapshot-content')?.classList.add('hidden');
+  document.getElementById('verdict-container')?.classList.add('hidden');
+
+  const limited = document.getElementById('limited-state');
+  if (!limited) return;
+  limited.classList.remove('hidden');
+
+  const required = data.receipts_required ?? 30;
+  const counts: Record<string, string> = {
+    receipt_count: data.receipt_count.toLocaleString(),
+    receipts_required: String(required),
+  };
+  limited.querySelectorAll('[data-pulse-limited]').forEach((el) => {
+    const field = el.getAttribute('data-pulse-limited');
+    if (field && counts[field] !== undefined) el.textContent = counts[field];
+  });
+
+  const pct = Math.min(100, Math.max(0, Math.round((data.receipt_count / required) * 100)));
+  const bar = limited.querySelector('[data-pulse-limited="progress"]');
+  if (bar) {
+    (bar as HTMLElement).style.width = `${pct}%`;
+    bar.parentElement?.setAttribute('aria-valuenow', String(pct));
+  }
+
+  const fallbackEl = limited.querySelector('[data-pulse-limited="fallback"]');
+  if (!fallbackEl) return;
+  const fallback = data.fallback ?? null;
+  fallbackEl.classList.toggle('hidden', fallback === null);
+  if (fallback === null) return;
+
+  const text: Record<string, string> = {
+    fallback_label: fallback.display_label,
+    fallback_price: formatPula(fallback.median_price),
+    fallback_count: fallback.receipt_count.toLocaleString(),
+  };
+  fallbackEl.querySelectorAll('[data-pulse-limited]').forEach((el) => {
+    const field = el.getAttribute('data-pulse-limited');
+    if (field && text[field] !== undefined) el.textContent = text[field];
+  });
+  const link = fallbackEl.querySelector('[data-pulse-limited="fallback_href"]');
+  if (link) link.setAttribute('href', `/pulse/${fallback.slug}`);
+}
+
 export function refreshLiveFields(data: CategorySnapshot): void {
+  // An unpublished payload has no prices — toNum turns the missing fields into
+  // 0 and everything below would render "P 0.00" (#12). The reverse case (a
+  // limited page whose refresh says published) is deliberately not handled: the
+  // price markup isn't baked, so the next rebuild heals it instead of JS.
+  if (!data.published) {
+    applyLimitedState(data);
+    return;
+  }
+
   const fieldMap: Record<string, string> = {
     median_price: formatPula(data.median_price),
     avg_price: formatPula(data.avg_price),
@@ -409,7 +489,6 @@ export function refreshLiveFields(data: CategorySnapshot): void {
   // row is valid, just older, and blanking it would render an empty sentence.
   const teaserMap: Record<string, string | null> = {
     avg_trip_spend: data.teaser.avg_trip_spend === null ? null : formatPula(data.teaser.avg_trip_spend),
-    trip_basket_count: data.teaser.trip_basket_count === null ? null : String(data.teaser.trip_basket_count),
     bought_together_count: data.teaser.bought_together_count === null ? null : String(data.teaser.bought_together_count),
     co_basket_brand_count: data.teaser.co_basket_brand_count === null ? null : String(data.teaser.co_basket_brand_count),
     competing_brand_count: data.teaser.competing_brand_count === null ? null : String(data.teaser.competing_brand_count),

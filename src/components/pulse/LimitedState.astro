@@ -1,11 +1,13 @@
 ---
 // Limited-data state — progress bar + fallback block (hidden when null) + browse link.
+// Baked collapsed on published pages so the mount-refresh can reveal it without
+// constructing markup; NotifyMeForm is omitted there rather than shipped (with its
+// client script) to 52 pages that will never show it.
 import { formatPula } from '../../lib/pulse';
 import NotifyMeForm from './NotifyMeForm.astro';
 
 interface Props {
   slug: string;
-  displayLabel: string;
   receiptCount: number;
   receiptsRequired: number;
   fallback: {
@@ -14,53 +16,49 @@ interface Props {
     median_price: number;
     receipt_count: number;
   } | null;
+  hidden?: boolean;
 }
 
-const { slug, displayLabel, receiptCount, receiptsRequired, fallback } = Astro.props;
-const pct = Math.round((receiptCount / receiptsRequired) * 100);
+const { slug, receiptCount, receiptsRequired, fallback, hidden = false } = Astro.props;
+const required = receiptsRequired || 30;
+const pct = Math.min(100, Math.max(0, Math.round((receiptCount / required) * 100)));
+const cardClass = 'bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm';
 ---
 
-<main class="flex-1 w-full max-w-md mx-auto px-4 py-8 flex flex-col gap-8">
-  <!-- Category Header -->
-  <section class="flex flex-col gap-1 px-2">
-    <h1 class="font-headline text-3xl font-bold text-on-surface">{displayLabel}</h1>
-    <p class="text-sm text-on-surface-variant flex items-center gap-1">
-      <span class="material-symbols-outlined text-base">location_on</span>
-      Botswana · formal grocery retail
-    </p>
-  </section>
-
+<div id="limited-state" class={hidden ? 'hidden space-y-8' : 'space-y-8'}>
   <!-- Honest Status Card -->
   <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-4 shadow-sm">
     <div class="flex flex-col gap-1">
       <h2 class="font-headline text-xl font-semibold text-on-surface">We&rsquo;re still building this picture.</h2>
-      <p class="text-sm text-on-surface-variant">We have {receiptCount} verified receipts for this category — we publish a snapshot at {receiptsRequired}.</p>
+      <p class="text-sm text-on-surface-variant">We have <span data-pulse-limited="receipt_count">{receiptCount.toLocaleString()}</span> verified receipts for this category — we publish a snapshot at <span data-pulse-limited="receipts_required">{required}</span>.</p>
     </div>
     <div class="flex flex-col gap-1">
       <div class="w-full bg-surface-variant h-2 rounded overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100">
-        <div class="bg-primary h-full transition-all duration-500 ease-out" style={`width: ${pct}%`}></div>
+        <div data-pulse-limited="progress" class="bg-primary h-full transition-all duration-500 ease-out" style={`width: ${pct}%`}></div>
       </div>
-      <span class="text-xs text-outline">{receiptCount} of {receiptsRequired} receipts</span>
+      <span class="text-xs text-outline"><span data-pulse-limited="receipt_count">{receiptCount.toLocaleString()}</span> of <span data-pulse-limited="receipts_required">{required}</span> receipts</span>
     </div>
   </article>
 
-  <!-- Fallback block -->
-  {fallback !== null && (
-    <article class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col gap-3 shadow-sm">
-      <h3 class="text-xs text-on-surface-variant uppercase tracking-wider">Nearby category: {fallback.display_label}</h3>
-      <div>
-        <span class="font-headline text-2xl font-bold text-on-surface">{formatPula(fallback.median_price)} typical</span>
-      </div>
-      <p class="text-sm text-outline">Based on {fallback.receipt_count.toLocaleString()} till-verified receipts</p>
-      <a href={`/pulse/${fallback.slug}`} class="text-sm font-semibold text-primary inline-flex items-center gap-1 group">
-        View full snapshot
-        <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-1">arrow_forward</span>
-      </a>
-    </article>
-  )}
+  <!-- Fallback block — always emitted, toggled by `hidden`, filled by the refresh -->
+  <article data-pulse-limited="fallback" class={fallback === null ? `hidden ${cardClass}` : cardClass}>
+    <h3 class="text-xs text-on-surface-variant uppercase tracking-wider">Nearby category: <span data-pulse-limited="fallback_label">{fallback?.display_label ?? ''}</span></h3>
+    <div>
+      <span class="font-headline text-2xl font-bold text-on-surface"><span data-pulse-limited="fallback_price">{fallback === null ? '' : formatPula(fallback.median_price)}</span> typical</span>
+    </div>
+    <p class="text-sm text-outline">Based on <span data-pulse-limited="fallback_count">{fallback?.receipt_count.toLocaleString() ?? ''}</span> till-verified receipts</p>
+    <a
+      data-pulse-limited="fallback_href"
+      href={fallback === null ? '/pulse' : `/pulse/${fallback.slug}`}
+      class="text-sm font-semibold text-primary inline-flex items-center gap-1 group"
+    >
+      View full snapshot
+      <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-1">arrow_forward</span>
+    </a>
+  </article>
 
   <!-- Notify Me -->
-  <NotifyMeForm slug={slug} />
+  {!hidden && <NotifyMeForm slug={slug} />}
 
   <!-- Browse Link -->
   <div class="flex justify-center pb-8">
@@ -69,4 +67,4 @@ const pct = Math.round((receiptCount / receiptsRequired) * 100);
       <span class="material-symbols-outlined text-base transition-transform group-hover:translate-x-1">arrow_forward</span>
     </a>
   </div>
-</main>
+</div>

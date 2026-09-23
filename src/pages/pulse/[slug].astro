@@ -12,36 +12,58 @@ import AiTeaserCard from '../../components/pulse/AiTeaserCard.astro';
 import ContactSheet from '../../components/pulse/ContactSheet.astro';
 import PriceCheck from '../../components/pulse/PriceCheck.astro';
 import VerdictView from '../../components/pulse/VerdictView.astro';
+import LimitedState from '../../components/pulse/LimitedState.astro';
 import {
-  fetchCategories,
+  API_BASE,
+  fetchCategoryList,
+  assertCategoryListComplete,
   fetchSnapshot,
   formatPula,
   formatPctChange,
   type CategorySnapshot,
 } from '../../lib/pulse';
+import { PULSE_LEGACY_SLUGS } from '../../data/pulse-legacy-slugs';
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const categories = await fetchCategories();
+  const list = await fetchCategoryList();
 
-  // D2 regression tripwire — if the cap regressed we won't silently drop ~40 pages.
-  if (categories.length <= 60) {
-    throw new Error(
-      `Market Pulse build failed: only ${categories.length} categories returned (cap may be at 60, not 250). Refusing to produce a truncated site.`,
-    );
-  }
+  // Regression tripwire — the API tells us itself when the list was clipped, so
+  // we guard that invariant instead of a magic count that drifts daily (#13).
+  assertCategoryListComplete(list);
+  const categories = list.items;
 
-  return categories
-    .filter((c) => {
+  const liveSlugs = categories.map((c) => c.slug);
+
+  // Legacy slugs are unpublished today, so the categories endpoint no longer
+  // lists them. Probe each one: only a 404 (category deleted) drops the slug.
+  // Any other failure fails the build — the daily rebuild is a full Direct
+  // Upload, so silently skipping on a transient 5xx would delete live pages,
+  // while a failed build leaves the previous deployment serving and alerts.
+  const legacyOnly = PULSE_LEGACY_SLUGS.filter((s) => !liveSlugs.includes(s));
+  const legacyResolved = (
+    await Promise.all(
+      legacyOnly.map(async (slug) => {
+        const res = await fetch(`${API_BASE}/v1/public/pulse/categories/${slug}`);
+        if (res.status === 404) {
+          console.warn(`Market Pulse: skipping legacy slug "${slug}" — 404 (category deleted)`);
+          return null;
+        }
+        if (!res.ok) throw new Error(`Market Pulse: legacy slug probe failed for "${slug}": ${res.status}`);
+        return slug;
+      }),
+    )
+  ).filter((s): s is string => s !== null);
+
+  return [...liveSlugs, ...legacyResolved]
+    .filter((slug) => {
       // Exclude slugs containing a dot — no current categories have them, but they break CF Pages routing.
-      if (c.slug.includes('.')) {
-        console.warn(`Market Pulse: excluding slug "${c.slug}" — contains '.' (breaks CF Pages static routing)`);
+      if (slug.includes('.')) {
+        console.warn(`Market Pulse: excluding slug "${slug}" — contains '.' (breaks CF Pages static routing)`);
         return false;
       }
       return true;
     })
-    .map((c) => ({
-      params: { slug: c.slug },
-    }));
+    .map((slug) => ({ params: { slug } }));
 };
 
 const { slug } = Astro.params as { slug: string };
@@ -49,8 +71,13 @@ const { slug } = Astro.params as { slug: string };
 // Re-fetch at build time for the page data
 const data: CategorySnapshot = await fetchSnapshot(slug);
 
+const receiptsRequired = data.receipts_required ?? 30;
+
 const ogTitle = `${data.display_label} — Market Pulse | BasketIQ`;
-const ogDescription = `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`;
+// An unpublished category has no prices, so the share preview must not quote one.
+const ogDescription = data.published
+  ? `Typical price ${formatPula(data.median_price)} · Based on ${data.receipt_count} till-verified receipts`
+  : `${data.display_label} — collecting data: ${data.receipt_count} of ${receiptsRequired} till-verified receipts`;
 const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
 ---
 
@@ -64,6 +91,8 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       <p class="text-sm text-on-surface-variant">Botswana · formal grocery retail · last 30 days</p>
     </div>
 
+    {data.published && (
+    <Fragment>
     <!-- Snapshot content — hidden when verdict is shown -->
     <div id="snapshot-content" class="space-y-6">
       <!-- Price Panel -->
@@ -118,8 +147,8 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       <!-- AI Teaser Card -->
       <AiTeaserCard teaser={data.teaser} slug={slug} receiptCount={data.receipt_count} />
 
-      <!-- Price Position Check — only on published, rendered at build time -->
-      {data.published && <PriceCheck slug={slug} />}
+      <!-- Price Position Check — rendered at build time inside the published branch -->
+      <PriceCheck slug={slug} />
     </div>
 
     <!-- Verdict View — hidden initially, filled client-side after price check -->
@@ -127,6 +156,18 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       p10Price={data.p10_price}
       p90Price={data.p90_price}
       wholesalerPrice={data.store_shares.find((s) => s.store_rollup === 'wholesalers')?.median_price ?? null}
+    />
+    </Fragment>
+    )}
+
+    <!-- Limited state — live on an unpublished category, baked collapsed on a
+         published one so the mount-refresh can swap to it (see applyLimitedState). -->
+    <LimitedState
+      slug={slug}
+      receiptCount={data.receipt_count}
+      receiptsRequired={receiptsRequired}
+      fallback={data.fallback ?? null}
+      hidden={data.published}
     />
   </main>
 
