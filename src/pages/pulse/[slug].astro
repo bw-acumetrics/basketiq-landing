@@ -144,8 +144,8 @@ const canonicalUrl = `https://basketiq.co.bw/pulse/${slug}`;
       <!-- AI Teaser Card -->
       <AiTeaserCard teaser={data.teaser} slug={slug} receiptCount={data.receipt_count} />
 
-      <!-- Price Position Check — only on published, rendered at build time -->
-      {data.published && <PriceCheck slug={slug} />}
+      <!-- Price Position Check — rendered at build time inside the published branch -->
+      <PriceCheck slug={slug} />
     </div>
 
     <!-- Verdict View — hidden initially, filled client-side after price check -->
