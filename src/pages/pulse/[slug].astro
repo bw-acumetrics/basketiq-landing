@@ -20,6 +20,7 @@ import {
   formatPctChange,
   type CategorySnapshot,
 } from '../../lib/pulse';
+import { PULSE_LEGACY_SLUGS } from '../../data/pulse-legacy-slugs';
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const list = await fetchCategoryList();
@@ -29,18 +30,36 @@ export const getStaticPaths: GetStaticPaths = async () => {
   assertCategoryListComplete(list);
   const categories = list.items;
 
-  return categories
-    .filter((c) => {
+  const liveSlugs = categories.map((c) => c.slug);
+
+  // Legacy slugs are unpublished today, so the categories endpoint no longer
+  // lists them. Probe each one: a category that has since been deleted must
+  // warn and drop out, not fail the whole (soon daily) rebuild.
+  const legacyOnly = PULSE_LEGACY_SLUGS.filter((s) => !liveSlugs.includes(s));
+  const legacyResolved = (
+    await Promise.all(
+      legacyOnly.map(async (slug) => {
+        try {
+          await fetchSnapshot(slug);
+          return slug;
+        } catch (e) {
+          console.warn(`Market Pulse: skipping legacy slug "${slug}" — ${e}`);
+          return null;
+        }
+      }),
+    )
+  ).filter((s): s is string => s !== null);
+
+  return [...liveSlugs, ...legacyResolved]
+    .filter((slug) => {
       // Exclude slugs containing a dot — no current categories have them, but they break CF Pages routing.
-      if (c.slug.includes('.')) {
-        console.warn(`Market Pulse: excluding slug "${c.slug}" — contains '.' (breaks CF Pages static routing)`);
+      if (slug.includes('.')) {
+        console.warn(`Market Pulse: excluding slug "${slug}" — contains '.' (breaks CF Pages static routing)`);
         return false;
       }
       return true;
     })
-    .map((c) => ({
-      params: { slug: c.slug },
-    }));
+    .map((slug) => ({ params: { slug } }));
 };
 
 const { slug } = Astro.params as { slug: string };
