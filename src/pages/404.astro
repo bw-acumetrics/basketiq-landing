@@ -116,10 +116,8 @@ import ContactSheet from '../components/pulse/ContactSheet.astro';
 
     let freeHtml = '';
     if (hasFree) {
-      let parts = `Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend as number)}</span> on average per trip`;
-      if (teaser.trip_basket_count !== null) {
-        parts += `, in baskets of <span class="font-headline font-bold text-primary-container" data-pulse-teaser="trip_basket_count">${teaser.trip_basket_count}</span> items`;
-      }
+      // #14: mirrors AiTeaserCard — trip_basket_count is a basket count, not items per basket.
+      const parts = `Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend as number)}</span> on average per trip.`;
       freeHtml =
         `<div class="flex items-center justify-between py-2"><p class="text-sm text-on-surface flex-1">${parts}</p>` +
         '<span class="bg-primary-fixed/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded ml-2 whitespace-nowrap">FREE INSIGHT</span></div>';
