@@ -13,7 +13,8 @@ import ContactSheet from '../../components/pulse/ContactSheet.astro';
 import PriceCheck from '../../components/pulse/PriceCheck.astro';
 import VerdictView from '../../components/pulse/VerdictView.astro';
 import {
-  fetchCategories,
+  fetchCategoryList,
+  assertCategoryListComplete,
   fetchSnapshot,
   formatPula,
   formatPctChange,
@@ -21,14 +22,12 @@ import {
 } from '../../lib/pulse';
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const categories = await fetchCategories();
+  const list = await fetchCategoryList();
 
-  // D2 regression tripwire — if the cap regressed we won't silently drop ~40 pages.
-  if (categories.length <= 60) {
-    throw new Error(
-      `Market Pulse build failed: only ${categories.length} categories returned (cap may be at 60, not 250). Refusing to produce a truncated site.`,
-    );
-  }
+  // Regression tripwire — the API tells us itself when the list was clipped, so
+  // we guard that invariant instead of a magic count that drifts daily (#13).
+  assertCategoryListComplete(list);
+  const categories = list.items;
 
   return categories
     .filter((c) => {

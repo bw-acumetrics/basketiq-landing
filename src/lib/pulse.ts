@@ -230,13 +230,35 @@ export function getSessionHash(): string {
 
 // ---- GET helpers ----
 
-export async function fetchCategories(): Promise<CategoryListItem[]> {
+export interface CategoryList {
+  items: CategoryListItem[];
+  truncated: boolean;
+}
+
+/** Surfaces the API's own `truncated` flag so the build can refuse a clipped list. */
+export async function fetchCategoryList(): Promise<CategoryList> {
   const res = await fetch(`${API_BASE}/v1/public/pulse/categories`);
   if (!res.ok) throw new Error(`Categories fetch failed: ${res.status}`);
   const raw = await res.json();
-  // API wraps with { items: [...] }
+  // API wraps with { items: [...], truncated: bool }
   const items: unknown[] = raw.items ?? raw;
-  return items.map((i) => normalizeItem(i as Record<string, unknown>));
+  return {
+    items: items.map((i) => normalizeItem(i as Record<string, unknown>)),
+    truncated: Boolean(raw.truncated),
+  };
+}
+
+export async function fetchCategories(): Promise<CategoryListItem[]> {
+  return (await fetchCategoryList()).items;
+}
+
+/** Build-time tripwire. Lives here, not in the page, so it is unit-testable. */
+export function assertCategoryListComplete(list: CategoryList): void {
+  if (list.truncated || list.items.length === 0) {
+    throw new Error(
+      `Market Pulse build failed: categories response truncated=${list.truncated}, count=${list.items.length}. Refusing to produce a truncated site.`,
+    );
+  }
 }
 
 export async function fetchSnapshot(slug: string): Promise<CategorySnapshot> {
