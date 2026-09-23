@@ -13,11 +13,9 @@ const { teaser, slug, receiptCount } = Astro.props;
 
 const freeRows: string[] = [];
 if (teaser.avg_trip_spend !== null) {
-  const parts = [`Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend)}</span> on average per trip`];
-  if (teaser.trip_basket_count !== null) {
-    parts.push(`, in baskets of <span class="font-headline font-bold text-primary-container" data-pulse-teaser="trip_basket_count">${teaser.trip_basket_count}</span> items`);
-  }
-  freeRows.push(parts.join(''));
+  // #14: the dropped clause read "in baskets of N items" where N is a basket
+  // count, not an item count. The card header already shows "from N baskets".
+  freeRows.push(`Shoppers who buy this item spend <span class="font-headline font-bold text-primary-container" data-pulse-teaser="avg_trip_spend">${formatPula(teaser.avg_trip_spend)}</span> on average per trip.`);
 }
 
 // A count of 0 is a real 0, not a null — "identified 0 competing brands" is not a

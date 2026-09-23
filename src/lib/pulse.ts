@@ -409,7 +409,6 @@ export function refreshLiveFields(data: CategorySnapshot): void {
   // row is valid, just older, and blanking it would render an empty sentence.
   const teaserMap: Record<string, string | null> = {
     avg_trip_spend: data.teaser.avg_trip_spend === null ? null : formatPula(data.teaser.avg_trip_spend),
-    trip_basket_count: data.teaser.trip_basket_count === null ? null : String(data.teaser.trip_basket_count),
     bought_together_count: data.teaser.bought_together_count === null ? null : String(data.teaser.bought_together_count),
     co_basket_brand_count: data.teaser.co_basket_brand_count === null ? null : String(data.teaser.co_basket_brand_count),
     competing_brand_count: data.teaser.competing_brand_count === null ? null : String(data.teaser.competing_brand_count),
